@@ -12,14 +12,16 @@ builder.Services.Configure<ApiSettings>(builder.Configuration.GetSection("ApiSet
 builder.Services.AddHttpClient();
 
 // Providers — agregar aquí futuros canales (WhatsApp, Email, etc.)
-builder.Services.AddScoped<TelegramProvider>();
+builder.Services.AddScoped<INotificationProvider, TelegramProvider>();
 
 // Services
 builder.Services.AddScoped<IMensajeriaService, MensajeriaService>();
 
 builder.Services.AddControllers();
+builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
 app.MapControllers();
+app.MapHealthChecks("/health");
 app.Run();

@@ -31,9 +31,11 @@ public class MensajeriaController : ControllerBase
     [ProducesResponseType(typeof(EnviarMensajeResponse), StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> EnviarMsgTG([FromBody] EnviarMensajeRequest request)
     {
+        var token = ExtraerToken(Request.Headers.Authorization.ToString());
+
         try
         {
-            var resultado = await _mensajeriaService.EnviarTelegramAsync(request);
+            var resultado = await _mensajeriaService.EnviarTelegramAsync(request, token);
 
             if (!resultado.Exitoso && resultado.Mensaje.Contains("Token"))
                 return Unauthorized(resultado);
@@ -52,4 +54,9 @@ public class MensajeriaController : ControllerBase
             });
         }
     }
+
+    private static string ExtraerToken(string authHeader) =>
+        authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
+            ? authHeader["Bearer ".Length..].Trim()
+            : string.Empty;
 }

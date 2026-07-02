@@ -5,5 +5,5 @@ namespace Notification.Api.Services;
 
 public interface IMensajeriaService
 {
-    Task<EnviarMensajeResponse> EnviarTelegramAsync(EnviarMensajeRequest request);
+    Task<EnviarMensajeResponse> EnviarTelegramAsync(EnviarMensajeRequest request, string token);
 }
