@@ -1,8 +1,19 @@
 using Notification.Api.Providers;
 using Notification.Api.Services;
 using Notification.Api.Settings;
+using Serilog;
+
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .WriteTo.Console()
+    .WriteTo.File(
+        Path.Combine(AppContext.BaseDirectory, "log", "Notification.Api", "api_.txt"),
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 30)
+    .CreateLogger();
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddSerilog();
 
 // Settings
 builder.Services.Configure<TelegramSettings>(builder.Configuration.GetSection("Telegram"));
@@ -24,4 +35,12 @@ var app = builder.Build();
 
 app.MapControllers();
 app.MapHealthChecks("/health");
-app.Run();
+
+try
+{
+    app.Run();
+}
+finally
+{
+    Log.CloseAndFlush();
+}
