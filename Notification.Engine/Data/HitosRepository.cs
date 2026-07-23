@@ -65,6 +65,6 @@ public class HitosRepository : IHitosRepository
             Reprogramar: reader.IsDBNull(ordReprogramar) ? null : reader.GetDateTime(ordReprogramar),
             MsgId: reader.IsDBNull(ordMsgId) ? null : reader.GetString(ordMsgId),
             TggChatId: reader.GetString(reader.GetOrdinal("Tgg_Chat_Id")),
-            EnviaFinDeSemana: !reader.IsDBNull(ordEnviaFinSemana) && reader.GetInt32(ordEnviaFinSemana) == 1);
+            EnviaFinDeSemana: !reader.IsDBNull(ordEnviaFinSemana) && reader.GetBoolean(ordEnviaFinSemana));
     }
 }
