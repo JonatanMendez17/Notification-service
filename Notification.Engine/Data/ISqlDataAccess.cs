@@ -14,4 +14,9 @@ public interface ISqlDataAccess
         string sql,
         IEnumerable<SqlParameter>? parameters = null,
         CancellationToken ct = default);
+
+    Task<T?> ExecuteScalarAsync<T>(
+        string sql,
+        IEnumerable<SqlParameter>? parameters = null,
+        CancellationToken ct = default);
 }

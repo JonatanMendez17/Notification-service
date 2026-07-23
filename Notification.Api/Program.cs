@@ -5,6 +5,10 @@ using Serilog;
 
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
+    // Se corta solo el detalle por-request de ASP.NET Core (ruidoso y repetitivo).
+    // Los mensajes de ciclo de vida (Application started, Now listening on, etc.)
+    // quedan — confirman que el servicio arrancó bien.
+    .MinimumLevel.Override("Microsoft.AspNetCore", Serilog.Events.LogEventLevel.Warning)
     .WriteTo.Console()
     .WriteTo.File(
         Path.Combine(AppContext.BaseDirectory, "log", "Notification.Api", "api_.txt"),

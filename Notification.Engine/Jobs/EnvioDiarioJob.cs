@@ -43,9 +43,16 @@ public class EnvioDiarioJob : BackgroundService
         var telegram = scope.ServiceProvider.GetRequiredService<TelegramBotClient>();
 
         var pendientes = await hitosRepo.GetPendientesEnvioDiarioAsync(ct);
-        if (pendientes.Count == 0) return;
+        if (pendientes.Count == 0)
+        {
+            _logger.LogInformation("EnvioDiarioJob: sin grupos/hitos para esta hora.");
+            return;
+        }
 
         var resultado = filtro.Filtrar(pendientes, DateTime.Now);
+        _logger.LogInformation(
+            "EnvioDiarioJob: {Total} hitos leídos — {Lunes} a reprogramar al lunes, {SinRecordatorio} chats sin recordatorios, {ConHitos} chats con hitos a enviar.",
+            pendientes.Count, resultado.MarcarLunes.Count, resultado.ChatsSinRecordatorios.Count, resultado.HitosPorChat.Count);
 
         foreach (var (hito, lunes) in resultado.MarcarLunes)
         {
@@ -79,6 +86,7 @@ public class EnvioDiarioJob : BackgroundService
                 if (envio is { Success: true, MessageId: { } messageId })
                 {
                     await hitosRepo.GuardarEnvioAsync(hito.Id, messageId.ToString(), DateOnly.FromDateTime(DateTime.Now), ct);
+                    _logger.LogInformation("EnvioDiarioJob: hito {HitoId} enviado a chat {ChatId} (mensaje {MessageId}).", hito.Id, chatId, messageId);
                 }
                 else
                 {

@@ -8,6 +8,10 @@ using Serilog;
 
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
+    // Se corta solo el detalle por-request de ASP.NET Core (ruidoso y repetitivo).
+    // Los mensajes de ciclo de vida (Application started, Now listening on, etc.)
+    // quedan — confirman que el servicio arrancó bien.
+    .MinimumLevel.Override("Microsoft.AspNetCore", Serilog.Events.LogEventLevel.Warning)
     .WriteTo.Console()
     .WriteTo.File(
         Path.Combine(AppContext.BaseDirectory, "log", "Notification.Engine", "engine_.txt"),
@@ -32,15 +36,23 @@ try
     // Data
     builder.Services.AddScoped<ISqlDataAccess, SqlDataAccess>();
     builder.Services.AddScoped<IHitosRepository, HitosRepository>();
+    builder.Services.AddScoped<IGruposRepository, GruposRepository>();
 
     // Telegram
     builder.Services.AddSingleton<TelegramBotClient>();
+    builder.Services.AddScoped<RespuestaRegistroHandler>();
 
     // Services
     builder.Services.AddScoped<IEnvioDiarioFilterService, EnvioDiarioFilterService>();
 
     // Jobs
     builder.Services.AddHostedService<EnvioDiarioJob>();
+    builder.Services.AddHostedService<ReprogramarJob>();
+    builder.Services.AddHostedService<ResetMensualJob>();
+    builder.Services.AddHostedService<ActualizacionesTiempoRealJob>();
+
+    // Receiver de updates de Telegram (dev = polling, spec 4.5)
+    builder.Services.AddHostedService<PollingReceiver>();
 
     var host = builder.Build();
     host.Run();

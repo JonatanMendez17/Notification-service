@@ -54,4 +54,22 @@ public class SqlDataAccess : ISqlDataAccess
 
         return await command.ExecuteNonQueryAsync(ct);
     }
+
+    public async Task<T?> ExecuteScalarAsync<T>(
+        string sql,
+        IEnumerable<SqlParameter>? parameters = null,
+        CancellationToken ct = default)
+    {
+        await using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync(ct);
+
+        await using var command = new SqlCommand(sql, connection);
+        if (parameters is not null)
+        {
+            command.Parameters.AddRange(parameters.ToArray());
+        }
+
+        var resultado = await command.ExecuteScalarAsync(ct);
+        return resultado is null or DBNull ? default : (T)resultado;
+    }
 }
