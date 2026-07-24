@@ -66,7 +66,7 @@ public class EnvioDiarioJob : BackgroundService
 
         foreach (var (chatId, hitosDelChat) in resultado.HitosPorChat)
         {
-            await telegram.SendMessageAsync(chatId, $"📅 *Recordatorio - {DateTime.Now:dd/MM/yyyy}*", ct: ct);
+            await telegram.SendMessageAsync(chatId, $"📅 Recordatorio - {DateTime.Now:dd/MM/yyyy}", ct: ct);
 
             foreach (var hito in hitosDelChat)
             {
