@@ -24,8 +24,9 @@ public interface IHitosRepository
 
     Task LimpiarFlagActualizarAsync(int hitoId, CancellationToken ct = default);
 
-    // Respuesta y Registro (botones OK / Posponer)
-    Task RegistrarHitoOkAsync(int hitoId, long tgUserId, string nombreCompleto, CancellationToken ct = default);
+    // Respuesta y Registro (botones OK / Posponer). Devuelven filas afectadas: 0 significa
+    // que el hito ya estaba en ese estado (callback duplicado, ej. doble tap del botón).
+    Task<int> RegistrarHitoOkAsync(int hitoId, long tgUserId, string nombreCompleto, CancellationToken ct = default);
 
-    Task RegistrarHitoPospuestoAsync(int hitoId, DateOnly nuevaFecha, string accionTexto, long tgUserId, string nombreCompleto, CancellationToken ct = default);
+    Task<int> RegistrarHitoPospuestoAsync(int hitoId, DateOnly nuevaFecha, string accionTexto, long tgUserId, string nombreCompleto, CancellationToken ct = default);
 }

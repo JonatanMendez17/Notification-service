@@ -47,8 +47,14 @@ public class RespuestaRegistroHandler
 
         if (accion == "ok")
         {
+            var filas = await _hitosRepo.RegistrarHitoOkAsync(hitoId, tgUserId, nombreCompleto, ct);
+            if (filas == 0)
+            {
+                _logger.LogInformation("RespuestaRegistroHandler: callback duplicado descartado, hito {HitoId} ya estaba OK.", hitoId);
+                return;
+            }
+
             await _telegram.EditMessageAsync(chatId, messageId, $"✅OK-{hitoTexto}", ct);
-            await _hitosRepo.RegistrarHitoOkAsync(hitoId, tgUserId, nombreCompleto, ct);
             _logger.LogInformation("RespuestaRegistroHandler: hito {HitoId} marcado OK por {Nombre}.", hitoId, nombreCompleto);
         }
         else if (accion.StartsWith("posponer"))
@@ -57,8 +63,14 @@ public class RespuestaRegistroHandler
             var dias = sufijo.Length > 0 && int.TryParse(sufijo, out var n) ? n : 1;
             var nuevaFecha = DateOnly.FromDateTime(DateTime.Now.AddDays(dias));
 
+            var filas = await _hitosRepo.RegistrarHitoPospuestoAsync(hitoId, nuevaFecha, $"Posponer +{dias}", tgUserId, nombreCompleto, ct);
+            if (filas == 0)
+            {
+                _logger.LogInformation("RespuestaRegistroHandler: callback duplicado descartado, hito {HitoId} ya estaba pospuesto igual.", hitoId);
+                return;
+            }
+
             await _telegram.EditMessageAsync(chatId, messageId, $"⏰Pospuesto-{hitoTexto}", ct);
-            await _hitosRepo.RegistrarHitoPospuestoAsync(hitoId, nuevaFecha, $"Posponer +{dias}", tgUserId, nombreCompleto, ct);
             _logger.LogInformation("RespuestaRegistroHandler: hito {HitoId} pospuesto a {Fecha} por {Nombre}.", hitoId, nuevaFecha, nombreCompleto);
         }
         else

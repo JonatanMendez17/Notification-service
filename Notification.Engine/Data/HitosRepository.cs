@@ -108,13 +108,15 @@ public class HitosRepository : IHitosRepository
             [new SqlParameter("@Id", SqlDbType.Int) { Value = hitoId }],
             ct);
 
-    public Task RegistrarHitoOkAsync(int hitoId, long tgUserId, string nombreCompleto, CancellationToken ct = default) =>
+    // WHERE estado <> 'OK': si ya estaba OK, no pisa la auditoría de quién lo resolvió
+    // primero y devuelve 0 filas — así el caller sabe que es un callback duplicado.
+    public Task<int> RegistrarHitoOkAsync(int hitoId, long tgUserId, string nombreCompleto, CancellationToken ct = default) =>
         _db.ExecuteAsync(
             """
             UPDATE dbo.Hitos_Mensuales
             SET estado = 'OK', Ultima_Respuesta_Tg_Id = @TgId, Ultima_Respuesta_Nombre = @Nombre,
                 Ultima_Respuesta_Accion = 'OK', Ultima_Respuesta_Fecha = GETDATE()
-            WHERE id = @Id
+            WHERE id = @Id AND estado <> 'OK'
             """,
             [
                 new SqlParameter("@TgId", SqlDbType.BigInt) { Value = tgUserId },
@@ -123,13 +125,16 @@ public class HitosRepository : IHitosRepository
             ],
             ct);
 
-    public Task RegistrarHitoPospuestoAsync(int hitoId, DateOnly nuevaFecha, string accionTexto, long tgUserId, string nombreCompleto, CancellationToken ct = default) =>
+    // Misma idea que RegistrarHitoOkAsync: si ya está pospuesto a la misma fecha con la
+    // misma acción, es un callback duplicado (0 filas), no una reprogramación real.
+    public Task<int> RegistrarHitoPospuestoAsync(int hitoId, DateOnly nuevaFecha, string accionTexto, long tgUserId, string nombreCompleto, CancellationToken ct = default) =>
         _db.ExecuteAsync(
             """
             UPDATE dbo.Hitos_Mensuales
             SET reprogramar = @Fecha, estado = 'Pendiente', Ultima_Respuesta_Tg_Id = @TgId,
                 Ultima_Respuesta_Nombre = @Nombre, Ultima_Respuesta_Accion = @Accion, Ultima_Respuesta_Fecha = GETDATE()
             WHERE id = @Id
+              AND NOT (reprogramar = @Fecha AND Ultima_Respuesta_Accion = @Accion)
             """,
             [
                 new SqlParameter("@Fecha", SqlDbType.Date) { Value = nuevaFecha.ToDateTime(TimeOnly.MinValue) },
