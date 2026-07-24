@@ -103,7 +103,7 @@ public class RespuestaRegistroHandler
 
         await _telegram.SendMessageAsync(
             chatId,
-            "✅ *Grupo registrado y activado correctamente.*\n\n¡Ya podés comenzar a recibir recordatorios!",
+            "✅ Grupo registrado y activado correctamente.\n\n¡Ya podés comenzar a recibir recordatorios!",
             ct: ct);
 
         _logger.LogInformation("RespuestaRegistroHandler: grupo {ChatId} registrado.", chatId);

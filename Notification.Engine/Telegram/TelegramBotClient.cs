@@ -48,7 +48,7 @@ public class TelegramBotClient
 
             if (!response.IsSuccessStatusCode || body is not { Ok: true })
             {
-                _logger.LogWarning("Telegram sendMessage falló para chat {ChatId}: {StatusCode}", chatId, response.StatusCode);
+                _logger.LogWarning("Telegram sendMessage falló para chat {ChatId}: {StatusCode} {Descripcion}", chatId, response.StatusCode, body?.Description);
                 return new TelegramSendResult { Success = false };
             }
 
@@ -84,7 +84,8 @@ public class TelegramBotClient
 
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogWarning("Telegram editMessageText falló para chat {ChatId}, mensaje {MessageId}: {StatusCode}", chatId, messageId, response.StatusCode);
+                var body = await response.Content.ReadFromJsonAsync<TelegramApiResponse>(cancellationToken: ct);
+                _logger.LogWarning("Telegram editMessageText falló para chat {ChatId}, mensaje {MessageId}: {StatusCode} {Descripcion}", chatId, messageId, response.StatusCode, body?.Description);
             }
 
             return response.IsSuccessStatusCode;
@@ -111,7 +112,8 @@ public class TelegramBotClient
 
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogWarning("Telegram answerCallbackQuery falló para {CallbackQueryId}: {StatusCode}", callbackQueryId, response.StatusCode);
+                var body = await response.Content.ReadFromJsonAsync<TelegramApiResponse>(cancellationToken: ct);
+                _logger.LogWarning("Telegram answerCallbackQuery falló para {CallbackQueryId}: {StatusCode} {Descripcion}", callbackQueryId, response.StatusCode, body?.Description);
             }
 
             return response.IsSuccessStatusCode;
@@ -153,6 +155,7 @@ public class TelegramBotClient
         public string Text { get; set; } = string.Empty;
 
         [JsonPropertyName("reply_markup")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public ReplyMarkup? ReplyMarkup { get; set; }
     }
 
