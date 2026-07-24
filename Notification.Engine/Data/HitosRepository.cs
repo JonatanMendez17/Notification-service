@@ -6,19 +6,21 @@ namespace Notification.Engine.Data;
 
 public class HitosRepository : IHitosRepository
 {
-    // Misma condición que el workflow "1. Envío diario" de N8N: hora del grupo (Tgg_Hora_Envio)
-    // o, si no está seteada, la hora global de Parametria ('hora_envio_diario').
+    // Cascada de hora (de más a menos específico): hora del hito (Hora_Envio) > hora del
+    // grupo (Tgg_Hora_Envio) > hora global de Parametria ('hora_envio_diario').
     private const string SqlPendientesEnvioDiario = """
         SELECT h.id, h.dia_mensual, h.hito, h.estado, h.reprogramar, h.msg_id,
-               t.Tgg_Chat_Id, t.Tgg_Envia_Fin_Semana
+               t.Tgg_Chat_Id, h.Envia_Fin_Semana
         FROM dbo.Hitos_Mensuales h
         JOIN dbo.Tg_Grupo t ON t.Tgg_Id = h.Tgg_id
         WHERE t.Tgg_Estado = 1
           AND t.Tgg_Chat_Id IS NOT NULL
           AND LTRIM(RTRIM(CAST(t.Tgg_Chat_Id AS varchar))) != ''
           AND DATEPART(hour, GETDATE()) = ISNULL(
-                CAST(LEFT(t.Tgg_Hora_Envio, 2) AS INT),
-                (SELECT CAST(LEFT(par_valor, 2) AS TINYINT) FROM dbo.Parametria WHERE par_clave = 'hora_envio_diario' AND par_vigente = 1))
+                CAST(LEFT(h.Hora_Envio, 2) AS INT),
+                ISNULL(
+                    CAST(LEFT(t.Tgg_Hora_Envio, 2) AS INT),
+                    (SELECT CAST(LEFT(par_valor, 2) AS TINYINT) FROM dbo.Parametria WHERE par_clave = 'hora_envio_diario' AND par_vigente = 1)))
         """;
 
     // Workflow "3. Reprogramar": trae todos los hitos condicionados a la hora de revisión
@@ -176,7 +178,7 @@ public class HitosRepository : IHitosRepository
         var ordEstado = reader.GetOrdinal("estado");
         var ordReprogramar = reader.GetOrdinal("reprogramar");
         var ordMsgId = reader.GetOrdinal("msg_id");
-        var ordEnviaFinSemana = reader.GetOrdinal("Tgg_Envia_Fin_Semana");
+        var ordEnviaFinSemana = reader.GetOrdinal("Envia_Fin_Semana");
 
         return new Hito(
             Id: reader.GetInt32(reader.GetOrdinal("id")),
