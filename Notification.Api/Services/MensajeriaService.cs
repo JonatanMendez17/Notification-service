@@ -6,18 +6,11 @@ using Notification.Api.Settings;
 
 namespace Notification.Api.Services;
 
-public class MensajeriaService : IMensajeriaService
+public class MensajeriaService(INotificationProvider provider, IOptions<ApiSettings> apiSettings, ILogger<MensajeriaService> logger) : IMensajeriaService
 {
-    private readonly INotificationProvider _provider;
-    private readonly ApiSettings _apiSettings;
-    private readonly ILogger<MensajeriaService> _logger;
-
-    public MensajeriaService(INotificationProvider provider, IOptions<ApiSettings> apiSettings, ILogger<MensajeriaService> logger)
-    {
-        _provider = provider;
-        _apiSettings = apiSettings.Value;
-        _logger = logger;
-    }
+    private readonly INotificationProvider _provider = provider;
+    private readonly ApiSettings _apiSettings = apiSettings.Value;
+    private readonly ILogger<MensajeriaService> _logger = logger;
 
     public async Task<EnviarMensajeResponse> EnviarAsync(EnviarMensajeRequest request, string token)
     {
@@ -38,8 +31,7 @@ public class MensajeriaService : IMensajeriaService
             : Respuesta(false, "Error al enviar el mensaje. Intente nuevamente.", _provider.Canal);
     }
 
-    private bool TokenEsValido(string token) =>
-        !string.IsNullOrWhiteSpace(token) && string.Equals(token, _apiSettings.TokenBearer, StringComparison.Ordinal);
+    private bool TokenEsValido(string token) => !string.IsNullOrWhiteSpace(token) && string.Equals(token, _apiSettings.TokenBearer, StringComparison.Ordinal);
 
     private static string ConstruirTexto(EnviarMensajeRequest r) =>
         $"De: {r.De}\n" +
@@ -47,6 +39,10 @@ public class MensajeriaService : IMensajeriaService
         $"{r.Titulo}\n\n" +
         $"{r.Mensaje}";
 
-    private static EnviarMensajeResponse Respuesta(bool exitoso, string mensaje, string canal) =>
-        new() { Exitoso = exitoso, Mensaje = mensaje, Canal = canal, Timestamp = DateTime.UtcNow };
+    private static EnviarMensajeResponse Respuesta(bool exitoso, string mensaje, string canal) => new() { 
+        Exitoso = exitoso, 
+        Mensaje = mensaje, 
+        Canal = canal, 
+        Timestamp = DateTime.UtcNow 
+    };
 }

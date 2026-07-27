@@ -3,22 +3,15 @@ using Notification.Api.Settings;
 
 namespace Notification.Api.Providers;
 
-public class TelegramProvider : INotificationProvider
+public class TelegramProvider(IHttpClientFactory httpClientFactory, IOptions<TelegramSettings> settings, ILogger<TelegramProvider> logger) : INotificationProvider
 {
     private const string ApiBase = "https://api.telegram.org";
 
-    private readonly IHttpClientFactory _httpClientFactory;
-    private readonly TelegramSettings _settings;
-    private readonly ILogger<TelegramProvider> _logger;
+    private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
+    private readonly TelegramSettings _settings = settings.Value;
+    private readonly ILogger<TelegramProvider> _logger = logger;
 
     public string Canal => "Telegram";
-
-    public TelegramProvider(IHttpClientFactory httpClientFactory, IOptions<TelegramSettings> settings, ILogger<TelegramProvider> logger)
-    {
-        _httpClientFactory = httpClientFactory;
-        _settings = settings.Value;
-        _logger = logger;
-    }
 
     public async Task<bool> EnviarAsync(string mensaje)
     {

@@ -8,16 +8,10 @@ namespace Notification.Api.Controllers;
 [ApiController]
 [Route("api/mensajeria")]
 [Produces("application/json")]
-public class MensajeriaController : ControllerBase
+public class MensajeriaController(IMensajeriaService mensajeriaService, ILogger<MensajeriaController> logger) : ControllerBase
 {
-    private readonly IMensajeriaService _mensajeriaService;
-    private readonly ILogger<MensajeriaController> _logger;
-
-    public MensajeriaController(IMensajeriaService mensajeriaService, ILogger<MensajeriaController> logger)
-    {
-        _mensajeriaService = mensajeriaService;
-        _logger = logger;
-    }
+    private readonly IMensajeriaService _mensajeriaService = mensajeriaService;
+    private readonly ILogger<MensajeriaController> _logger = logger;
 
     /// <summary>
     /// Envía un mensaje formateado a través del canal configurado.
@@ -55,8 +49,7 @@ public class MensajeriaController : ControllerBase
         }
     }
 
-    private static string ExtraerToken(string authHeader) =>
-        authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
+    private static string ExtraerToken(string authHeader) => authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
             ? authHeader["Bearer ".Length..].Trim()
             : string.Empty;
 }
