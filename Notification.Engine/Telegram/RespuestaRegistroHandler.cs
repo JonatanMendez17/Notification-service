@@ -3,31 +3,19 @@ using Notification.Engine.Data;
 namespace Notification.Engine.Telegram;
 
 // Se ejecuta a demanda a partir de eventos recibidos.
-public class RespuestaRegistroHandler
+public class RespuestaRegistroHandler(IHitosRepository hitosRepo, IGruposRepository gruposRepo, TelegramBotClient telegram, ILogger<RespuestaRegistroHandler> logger)
 {
     private static readonly string[] PalabrasRegistro = ["registro", "registrar", "registrarme"];
     private static readonly string[] TiposChatValidos = ["group", "supergroup", "channel"];
 
-    private readonly IHitosRepository _hitosRepo;
-    private readonly IGruposRepository _gruposRepo;
-    private readonly TelegramBotClient _telegram;
-    private readonly ILogger<RespuestaRegistroHandler> _logger;
+    private readonly IHitosRepository _hitosRepo = hitosRepo;
+    private readonly IGruposRepository _gruposRepo = gruposRepo;
+    private readonly TelegramBotClient _telegram = telegram;
+    private readonly ILogger<RespuestaRegistroHandler> _logger = logger;
 
-    public RespuestaRegistroHandler(
-        IHitosRepository hitosRepo,
-        IGruposRepository gruposRepo,
-        TelegramBotClient telegram,
-        ILogger<RespuestaRegistroHandler> logger)
+    public async Task ProcesarCallbackAsync(TelegramCallbackQuery cq, CancellationToken ct)
     {
-        _hitosRepo = hitosRepo;
-        _gruposRepo = gruposRepo;
-        _telegram = telegram;
-        _logger = logger;
-    }
-
-    public async Task OnCallbackQueryAsync(TelegramCallbackQuery cq, CancellationToken ct)
-    {
-        await _telegram.AnswerCallbackQueryAsync(cq.Id, ct);
+        await _telegram.ResponderCallbackAsync(cq.Id, ct);
 
         var partes = (cq.Data ?? string.Empty).Split('|');
         if (partes.Length != 2 || !int.TryParse(partes[1], out var hitoId))
@@ -52,7 +40,7 @@ public class RespuestaRegistroHandler
                 return;
             }
 
-            await _telegram.EditMessageAsync(chatId, messageId, $"✅OK-{hitoTexto}", ct);
+            await _telegram.EditarMensajeAsync(chatId, messageId, $"✅OK-{hitoTexto}", ct);
             _logger.LogInformation("RespuestaRegistroHandler: hito {HitoId} marcado OK por {Nombre}.", hitoId, nombreCompleto);
         }
         else if (accion.StartsWith("posponer"))
@@ -68,7 +56,7 @@ public class RespuestaRegistroHandler
                 return;
             }
 
-            await _telegram.EditMessageAsync(chatId, messageId, $"⏰Pospuesto-{hitoTexto}", ct);
+            await _telegram.EditarMensajeAsync(chatId, messageId, $"⏰Pospuesto-{hitoTexto}", ct);
             _logger.LogInformation("RespuestaRegistroHandler: hito {HitoId} pospuesto a {Fecha} por {Nombre}.", hitoId, nuevaFecha, nombreCompleto);
         }
         else
@@ -77,15 +65,15 @@ public class RespuestaRegistroHandler
             return;
         }
 
-        var treId = await _gruposRepo.UpsertReceptorAsync(tgUserId, cq.From.FirstName ?? string.Empty, cq.From.LastName ?? string.Empty, ct);
-        var tggId = await _gruposRepo.GetTggIdPorChatIdAsync(chatId, ct);
+        var treId = await _gruposRepo.GuardarReceptorAsync(tgUserId, cq.From.FirstName ?? string.Empty, cq.From.LastName ?? string.Empty, ct);
+        var tggId = await _gruposRepo.ObtenerTggIdPorChatIdAsync(chatId, ct);
         if (tggId is not null)
         {
             await _gruposRepo.AsegurarGrupoReceptorAsync(tggId.Value, treId, ct);
         }
     }
 
-    public async Task OnMessageAsync(TelegramIncomingMessage msg, CancellationToken ct)
+    public async Task ProcesarMensajeAsync(TelegramIncomingMessage msg, CancellationToken ct)
     {
         if (msg.Text is null || !TiposChatValidos.Contains(msg.Chat.Type)) return;
 
@@ -97,7 +85,7 @@ public class RespuestaRegistroHandler
 
         if (await _gruposRepo.ExisteGrupoAsync(chatId, ct))
         {
-            await _telegram.SendMessageAsync(chatId, "⚠️ Este grupo ya está registrado en el sistema.", ct: ct);
+            await _telegram.EnviarMensajeAsync(chatId, "⚠️ Este grupo ya está registrado en el sistema.", ct: ct);
             return;
         }
 
@@ -111,7 +99,7 @@ public class RespuestaRegistroHandler
             msg.From?.Username,
             ct);
 
-        await _telegram.SendMessageAsync(
+        await _telegram.EnviarMensajeAsync(
             chatId,
             "✅ Grupo registrado y activado correctamente.\n\n¡Ya podés comenzar a recibir recordatorios!",
             ct: ct);

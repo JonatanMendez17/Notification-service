@@ -7,32 +7,17 @@ namespace Notification.Engine.Telegram;
 
 // Único componente que le habla a Telegram para recibir updates en desarrollo.
 // En PROD se reemplaza por WebhookReceiver — nunca corren los dos a la vez
-public class PollingReceiver : PeriodicBackgroundService
+public class PollingReceiver(IHttpClientFactory httpClientFactory, IOptions<TelegramSettings> settings, IServiceScopeFactory scopeFactory, ILogger<PollingReceiver> logger) : RecurringBackgroundService(TimeSpan.FromSeconds(5), logger)
 {
     private const string ApiBase = "https://api.telegram.org";
 
-    private readonly IHttpClientFactory _httpClientFactory;
-    private readonly TelegramSettings _settings;
-    private readonly IServiceScopeFactory _scopeFactory;
-
-    // El offset se guarda solo en memoria. Tras un reinicio pueden reprocesarse
-    // algunos updates, pero es seguro porque las operaciones evitan duplicados.
+    private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
+    private readonly TelegramSettings _settings = settings.Value;
+    private readonly IServiceScopeFactory _scopeFactory = scopeFactory;
 
     private long? _lastUpdateId;
 
-    public PollingReceiver(
-        IHttpClientFactory httpClientFactory,
-        IOptions<TelegramSettings> settings,
-        IServiceScopeFactory scopeFactory,
-        ILogger<PollingReceiver> logger)
-        : base(TimeSpan.FromSeconds(5), logger)
-    {
-        _httpClientFactory = httpClientFactory;
-        _settings = settings.Value;
-        _scopeFactory = scopeFactory;
-    }
-
-    protected override async Task EjecutarAsync(CancellationToken ct)
+    protected override async Task ProcessAsync(CancellationToken ct)
     {
         var client = _httpClientFactory.CreateClient();
         var offset = _lastUpdateId is { } id ? id + 1 : 0;
@@ -53,11 +38,11 @@ public class PollingReceiver : PeriodicBackgroundService
         {
             if (update.CallbackQuery is not null)
             {
-                await handler.OnCallbackQueryAsync(update.CallbackQuery, ct);
+                await handler.ProcesarCallbackAsync(update.CallbackQuery, ct);
             }
             else if (update.Message is not null)
             {
-                await handler.OnMessageAsync(update.Message, ct);
+                await handler.ProcesarMensajeAsync(update.Message, ct);
             }
         }
     }

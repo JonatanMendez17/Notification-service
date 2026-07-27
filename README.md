@@ -214,7 +214,7 @@ Motor de recordatorios de hitos mensuales de TGN. Reemplaza 5 workflows que ante
 | `EnvioDiarioJob` | 1h | 1. Envío diario | Busca hitos pendientes cuya hora ya llegó (ver cascada abajo), agrupa por chat, manda una cabecera `📅 Recordatorio - fecha` y un mensaje por hito con botones `✅OK` / `⏰+1..+4`, guarda `msg_id` |
 | `RespuestaRegistroHandler` + `PollingReceiver` | 5s (dev) | 2. Respuesta y Registro | Recibe updates de Telegram: comando `/registrar` (alta de grupo) y botones OK/Posponer. Descarta callbacks duplicados (doble tap) verificando el estado actual en BD antes de reprocesar |
 | `ReprogramarJob` | 1h (`hora_revision`) | 3. Reprogramar | Hitos vencidos sin respuesta hoy se reprograman para mañana y se edita su mensaje a `⏰ {hito}` |
-| `ResetMensualJob` | 1h (`hora_reset`, días 1 y 15) | 4. Reset mensual | Resetea a `Pendiente` los hitos en estado `OK` (día 1: todos; día 15: solo los de la segunda quincena) |
+| `ReinicioMensualJob` | 1h (`hora_reset`, días 1 y 15) | 4. Reset mensual | Resetea a `Pendiente` los hitos en estado `OK` (día 1: todos; día 15: solo los de la segunda quincena) |
 | `ActualizacionesTiempoRealJob` | 5s | 5. Actualizaciones en tiempo real | Sincroniza a Telegram (edita el mensaje ya enviado) los cambios de estado hechos desde la app web TGN |
 
 En dev, la recepción de updates de Telegram es por **polling** (`PollingReceiver`, `getUpdates` cada 5s). En server debería reemplazarse por un webhook — **todavía no implementado**, es la única pieza pendiente del diseño original.
@@ -233,7 +233,7 @@ La hora a la que se manda el recordatorio de un hito se resuelve con 3 niveles, 
 
 `Notification.Engine` no usa `Notification.Api` para hablar con Telegram — tiene su propio `TelegramBotClient` (`Telegram/TelegramBotClient.cs`), porque necesita botones inline y el `message_id` de vuelta, algo que un gateway genérico no ofrece. Puntos a tener en cuenta si se toca este código:
 
-- `EditMessageAsync` siempre manda `reply_markup` (vacío si no hay botones) — Telegram rechaza el campo si viene `null` explícito en vez de omitido.
+- `EditarMensajeAsync` siempre manda `reply_markup` (vacío si no hay botones) — Telegram rechaza el campo si viene `null` explícito en vez de omitido.
 - Las acciones de callback (`RegistrarHitoOkAsync` / `RegistrarHitoPospuestoAsync`) devuelven la cantidad de filas afectadas: `0` significa que el hito ya estaba en ese estado (callback duplicado — doble tap del botón, o dos personas del mismo grupo) y no hay que reprocesarlo ni volver a editar el mensaje.
 
 ### Configuración

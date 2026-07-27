@@ -45,7 +45,7 @@ try
     // Jobs
     builder.Services.AddHostedService<EnvioDiarioJob>();
     builder.Services.AddHostedService<ReprogramarJob>();
-    builder.Services.AddHostedService<ResetMensualJob>();
+    builder.Services.AddHostedService<ReinicioMensualJob>();
     builder.Services.AddHostedService<ActualizacionesTiempoRealJob>();
 
     // Receiver de updates de Telegram (dev = polling, spec 4.5)

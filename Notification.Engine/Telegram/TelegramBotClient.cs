@@ -6,26 +6,15 @@ using Notification.Engine.Settings;
 namespace Notification.Engine.Telegram;
 
 // Cliente directo de Telegram Bot API para soportar funciones específicas.
-public class TelegramBotClient
+public class TelegramBotClient(IHttpClientFactory httpClientFactory, IOptions<TelegramSettings> settings, ILogger<TelegramBotClient> logger)
 {
     private const string ApiBase = "https://api.telegram.org";
 
-    private readonly IHttpClientFactory _httpClientFactory;
-    private readonly TelegramSettings _settings;
-    private readonly ILogger<TelegramBotClient> _logger;
+    private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
+    private readonly TelegramSettings _settings = settings.Value;
+    private readonly ILogger<TelegramBotClient> _logger = logger;
 
-    public TelegramBotClient(IHttpClientFactory httpClientFactory, IOptions<TelegramSettings> settings, ILogger<TelegramBotClient> logger)
-    {
-        _httpClientFactory = httpClientFactory;
-        _settings = settings.Value;
-        _logger = logger;
-    }
-
-    public async Task<TelegramSendResult> SendMessageAsync(
-        string chatId,
-        string text,
-        IReadOnlyList<IReadOnlyList<InlineKeyboardButton>>? inlineKeyboard = null,
-        CancellationToken ct = default)
+    public async Task<TelegramSendResult> EnviarMensajeAsync(string chatId, string text, IReadOnlyList<IReadOnlyList<InlineKeyboardButton>>? inlineKeyboard = null, CancellationToken ct = default)
     {
         var payload = new SendMessagePayload
         {
@@ -36,12 +25,12 @@ public class TelegramBotClient
                 : null
         };
 
-        var (exito, body) = await PostAsync("sendMessage", payload, $"chat {chatId}", ct);
+        var (exito, body) = await EnviarPeticionAsync("sendMessage", payload, $"chat {chatId}", ct);
         return new TelegramSendResult { Success = exito, MessageId = body?.Result?.MessageId };
     }
 
     // Actualiza mensajes enviados; si no pueden editarse, continúa sin interrumpir el proceso.
-    public async Task<bool> EditMessageAsync(string chatId, string messageId, string text, CancellationToken ct = default)
+    public async Task<bool> EditarMensajeAsync(string chatId, string messageId, string text, CancellationToken ct = default)
     {
         var payload = new EditMessagePayload
         {
@@ -51,20 +40,20 @@ public class TelegramBotClient
             ReplyMarkup = new ReplyMarkup { InlineKeyboard = [] }
         };
 
-        var (exito, _) = await PostAsync("editMessageText", payload, $"chat {chatId}, mensaje {messageId}", ct);
+        var (exito, _) = await EnviarPeticionAsync("editMessageText", payload, $"chat {chatId}, mensaje {messageId}", ct);
         return exito;
     }
 
     // Confirma visualmente la acción del botón; si falla, no interrumpe el procesamiento.
-    public async Task<bool> AnswerCallbackQueryAsync(string callbackQueryId, CancellationToken ct = default)
+    public async Task<bool> ResponderCallbackAsync(string callbackQueryId, CancellationToken ct = default)
     {
         var payload = new AnswerCallbackQueryPayload { CallbackQueryId = callbackQueryId };
-        var (exito, _) = await PostAsync("answerCallbackQuery", payload, $"callback_query {callbackQueryId}", ct);
+        var (exito, _) = await EnviarPeticionAsync("answerCallbackQuery", payload, $"callback_query {callbackQueryId}", ct);
         return exito;
     }
 
     // Centraliza el POST a la Bot API: arma la URL, deserializa la respuesta y loguea warning/error de forma uniforme.
-    private async Task<(bool Success, TelegramApiResponse? Body)> PostAsync<TPayload>(
+    private async Task<(bool Success, TelegramApiResponse? Body)> EnviarPeticionAsync<TPayload>(
         string metodo, TPayload payload, string contexto, CancellationToken ct)
     {
         try

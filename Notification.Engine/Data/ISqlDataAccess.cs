@@ -4,18 +4,18 @@ namespace Notification.Engine.Data;
 
 public interface ISqlDataAccess
 {
-    Task<List<T>> QueryAsync<T>(
+    Task<List<T>> ConsultarAsync<T>(
         string sql,
         Func<SqlDataReader, T> map,
         IEnumerable<SqlParameter>? parameters = null,
         CancellationToken ct = default);
 
-    Task<int> ExecuteAsync(
+    Task<int> EjecutarAsync(
         string sql,
         IEnumerable<SqlParameter>? parameters = null,
         CancellationToken ct = default);
 
-    Task<T?> ExecuteScalarAsync<T>(
+    Task<T?> ObtenerValorAsync<T>(
         string sql,
         IEnumerable<SqlParameter>? parameters = null,
         CancellationToken ct = default);

@@ -9,7 +9,7 @@ public class GruposRepository(ISqlDataAccess db) : IGruposRepository
 
     public async Task<bool> ExisteGrupoAsync(string chatId, CancellationToken ct = default)
     {
-        var count = await _db.ExecuteScalarAsync<int>(
+        var count = await _db.ObtenerValorAsync<int>(
             "SELECT COUNT(*) FROM dbo.Tg_Grupo WHERE Tgg_Chat_Id = @ChatId",
             [new SqlParameter("@ChatId", SqlDbType.VarChar, 50) { Value = chatId }],
             ct);
@@ -18,7 +18,7 @@ public class GruposRepository(ISqlDataAccess db) : IGruposRepository
     }
 
     public Task RegistrarGrupoAsync(string nombre, string chatId, long? ownerTgId, string? ownerNombre, string? ownerUsername, CancellationToken ct = default) =>
-        _db.ExecuteAsync(
+        _db.EjecutarAsync(
             """
             INSERT INTO dbo.Tg_Grupo (Tgg_Nombre, Tgg_Chat_Id, Tgg_Estado, Tgg_Fecha_Creado, Tgg_Owner_Tg_Id, Tgg_Owner_Nombre, Tgg_Owner_Username)
             VALUES (@Nombre, @ChatId, 1, GETDATE(), @OwnerTgId, @OwnerNombre, @OwnerUsername)
@@ -32,22 +32,22 @@ public class GruposRepository(ISqlDataAccess db) : IGruposRepository
             ],
             ct);
 
-    public Task<int?> GetTggIdPorChatIdAsync(string chatId, CancellationToken ct = default) =>
-        _db.ExecuteScalarAsync<int?>(
+    public Task<int?> ObtenerTggIdPorChatIdAsync(string chatId, CancellationToken ct = default) =>
+        _db.ObtenerValorAsync<int?>(
             "SELECT Tgg_Id FROM dbo.Tg_Grupo WHERE Tgg_Chat_Id = @ChatId",
             [new SqlParameter("@ChatId", SqlDbType.VarChar, 50) { Value = chatId }],
             ct);
 
-    public async Task<int> UpsertReceptorAsync(long tgUserId, string nombre, string apellido, CancellationToken ct = default)
+    public async Task<int> GuardarReceptorAsync(long tgUserId, string nombre, string apellido, CancellationToken ct = default)
     {
-        var existenteId = await _db.ExecuteScalarAsync<int?>(
+        var existenteId = await _db.ObtenerValorAsync<int?>(
             "SELECT Tre_Id FROM dbo.Tg_Receptor WHERE Tre_Tg_Id = @TgId",
             [new SqlParameter("@TgId", SqlDbType.BigInt) { Value = tgUserId }],
             ct);
 
         if (existenteId is { } treId)
         {
-            await _db.ExecuteAsync(
+            await _db.EjecutarAsync(
                 "UPDATE dbo.Tg_Receptor SET Tre_Nombre = @Nombre, Tre_Apellido = @Apellido WHERE Tre_Id = @Id",
                 [
                     new SqlParameter("@Nombre", SqlDbType.VarChar, 50) { Value = nombre },
@@ -59,7 +59,7 @@ public class GruposRepository(ISqlDataAccess db) : IGruposRepository
             return treId;
         }
 
-        var nuevoId = await _db.ExecuteScalarAsync<int>(
+        var nuevoId = await _db.ObtenerValorAsync<int>(
             """
             INSERT INTO dbo.Tg_Receptor (Tre_Nombre, Tre_Apellido, Tre_Tg_Id, Tre_Vigente)
             OUTPUT INSERTED.Tre_Id
@@ -77,7 +77,7 @@ public class GruposRepository(ISqlDataAccess db) : IGruposRepository
 
     public async Task AsegurarGrupoReceptorAsync(int tggId, int treId, CancellationToken ct = default)
     {
-        var yaExiste = await _db.ExecuteScalarAsync<int?>(
+        var yaExiste = await _db.ObtenerValorAsync<int?>(
             "SELECT 1 FROM dbo.Tg_Grupo_Receptor WHERE Tgg_Id = @TggId AND Tre_Id = @TreId",
             [
                 new SqlParameter("@TggId", SqlDbType.Int) { Value = tggId },
@@ -87,7 +87,7 @@ public class GruposRepository(ISqlDataAccess db) : IGruposRepository
 
         if (yaExiste is null)
         {
-            await _db.ExecuteAsync(
+            await _db.EjecutarAsync(
                 "INSERT INTO dbo.Tg_Grupo_Receptor (Tgg_Id, Tre_Id) VALUES (@TggId, @TreId)",
                 [
                     new SqlParameter("@TggId", SqlDbType.Int) { Value = tggId },

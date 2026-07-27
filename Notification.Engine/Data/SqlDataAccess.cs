@@ -13,7 +13,7 @@ public class SqlDataAccess : ISqlDataAccess
         _connectionString = settings.Value.ConnectionString;
     }
 
-    public async Task<List<T>> QueryAsync<T>(
+    public async Task<List<T>> ConsultarAsync<T>(
         string sql,
         Func<SqlDataReader, T> map,
         IEnumerable<SqlParameter>? parameters = null,
@@ -38,7 +38,7 @@ public class SqlDataAccess : ISqlDataAccess
         return resultados;
     }
 
-    public async Task<int> ExecuteAsync(
+    public async Task<int> EjecutarAsync(
         string sql,
         IEnumerable<SqlParameter>? parameters = null,
         CancellationToken ct = default)
@@ -55,7 +55,7 @@ public class SqlDataAccess : ISqlDataAccess
         return await command.ExecuteNonQueryAsync(ct);
     }
 
-    public async Task<T?> ExecuteScalarAsync<T>(
+    public async Task<T?> ObtenerValorAsync<T>(
         string sql,
         IEnumerable<SqlParameter>? parameters = null,
         CancellationToken ct = default)

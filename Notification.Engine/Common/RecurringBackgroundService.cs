@@ -1,12 +1,11 @@
 namespace Notification.Engine.Common;
 
 // Base para BackgroundService que corren en un intervalo fijo (PeriodicTimer)
-// y no deben morir si una iteración tira excepción.
-public abstract class PeriodicBackgroundService(TimeSpan interval, ILogger logger) : BackgroundService
+public abstract class RecurringBackgroundService(TimeSpan interval, ILogger logger) : BackgroundService
 {
     protected ILogger Logger => logger;
 
-    protected abstract Task EjecutarAsync(CancellationToken ct);
+    protected abstract Task ProcessAsync(CancellationToken ct);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -16,7 +15,7 @@ public abstract class PeriodicBackgroundService(TimeSpan interval, ILogger logge
         {
             try
             {
-                await EjecutarAsync(stoppingToken);
+                await ProcessAsync(stoppingToken);
             }
             catch (Exception ex)
             {

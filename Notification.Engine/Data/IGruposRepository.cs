@@ -6,9 +6,9 @@ public interface IGruposRepository
 
     Task RegistrarGrupoAsync(string nombre, string chatId, long? ownerTgId, string? ownerNombre, string? ownerUsername, CancellationToken ct = default);
 
-    Task<int?> GetTggIdPorChatIdAsync(string chatId, CancellationToken ct = default);
+    Task<int?> ObtenerTggIdPorChatIdAsync(string chatId, CancellationToken ct = default);
 
-    Task<int> UpsertReceptorAsync(long tgUserId, string nombre, string apellido, CancellationToken ct = default);
+    Task<int> GuardarReceptorAsync(long tgUserId, string nombre, string apellido, CancellationToken ct = default);
 
     Task AsegurarGrupoReceptorAsync(int tggId, int treId, CancellationToken ct = default);
 }

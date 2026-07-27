@@ -3,27 +3,21 @@ using Notification.Engine.Data;
 
 namespace Notification.Engine.Jobs;
 
-// Job 4 - Reset Mensual
+// Job 4 - Reinicio Mensual
 // Reseteo mensual de hitos
-public class ResetMensualJob : PeriodicBackgroundService
+public class ReinicioMensualJob(IServiceScopeFactory scopeFactory, ILogger<ReinicioMensualJob> logger) : RecurringBackgroundService(TimeSpan.FromHours(1), logger)
 {
-    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IServiceScopeFactory _scopeFactory = scopeFactory;
 
-    public ResetMensualJob(IServiceScopeFactory scopeFactory, ILogger<ResetMensualJob> logger)
-        : base(TimeSpan.FromHours(1), logger)
-    {
-        _scopeFactory = scopeFactory;
-    }
-
-    protected override async Task EjecutarAsync(CancellationToken ct)
+    protected override async Task ProcessAsync(CancellationToken ct)
     {
         using var scope = _scopeFactory.CreateScope();
         var hitosRepo = scope.ServiceProvider.GetRequiredService<IHitosRepository>();
 
-        var candidatos = await hitosRepo.GetCandidatosResetAsync(ct);
+        var candidatos = await hitosRepo.ObtenerCandidatosResetAsync(ct);
         if (candidatos.Count == 0)
         {
-            Logger.LogInformation("ResetMensualJob: no es día/hora de reset, o no hay hitos en estado OK.");
+            Logger.LogInformation("ReinicioMensualJob: no es día/hora de reset, o no hay hitos en estado OK.");
             return;
         }
 
@@ -41,7 +35,7 @@ public class ResetMensualJob : PeriodicBackgroundService
         if (idsAResetear.Count > 0)
         {
             await hitosRepo.ResetearHitosAsync(idsAResetear, ct);
-            Logger.LogInformation("ResetMensualJob: {Cantidad} hitos reseteados a Pendiente.", idsAResetear.Count);
+            Logger.LogInformation("ReinicioMensualJob: {Cantidad} hitos reseteados a Pendiente.", idsAResetear.Count);
         }
     }
 }

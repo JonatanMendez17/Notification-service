@@ -52,11 +52,11 @@ public class HitosRepository(ISqlDataAccess db) : IHitosRepository
 
     private readonly ISqlDataAccess _db = db;
 
-    public Task<List<Hito>> GetPendientesEnvioDiarioAsync(CancellationToken ct = default) =>
-        _db.QueryAsync(SqlPendientesEnvioDiario, Map, ct: ct);
+    public Task<List<Hito>> ObtenerPendientesEnvioDiarioAsync(CancellationToken ct = default) =>
+        _db.ConsultarAsync(SqlPendientesEnvioDiario, Mapear, ct: ct);
 
     public Task MarcarReprogramarAsync(int hitoId, DateOnly fecha, CancellationToken ct = default) =>
-        _db.ExecuteAsync(
+        _db.EjecutarAsync(
             "UPDATE dbo.Hitos_Mensuales SET reprogramar = @Fecha WHERE id = @Id",
             [
                 new SqlParameter("@Fecha", SqlDbType.Date) { Value = fecha.ToDateTime(TimeOnly.MinValue) },
@@ -65,7 +65,7 @@ public class HitosRepository(ISqlDataAccess db) : IHitosRepository
             ct);
 
     public Task GuardarEnvioAsync(int hitoId, string messageId, DateOnly fecha, CancellationToken ct = default) =>
-        _db.ExecuteAsync(
+        _db.EjecutarAsync(
             "UPDATE dbo.Hitos_Mensuales SET msg_id = @MsgId, reprogramar = @Fecha WHERE id = @Id",
             [
                 new SqlParameter("@MsgId", SqlDbType.NVarChar, 50) { Value = messageId },
@@ -74,11 +74,11 @@ public class HitosRepository(ISqlDataAccess db) : IHitosRepository
             ],
             ct);
 
-    public Task<List<HitoParaReprogramar>> GetCandidatosReprogramarAsync(CancellationToken ct = default) =>
-        _db.QueryAsync(SqlCandidatosReprogramar, MapReprogramar, ct: ct);
+    public Task<List<HitoParaReprogramar>> ObtenerCandidatosReprogramarAsync(CancellationToken ct = default) =>
+        _db.ConsultarAsync(SqlCandidatosReprogramar, MapearReprogramar, ct: ct);
 
-    public Task<List<HitoParaReset>> GetCandidatosResetAsync(CancellationToken ct = default) =>
-        _db.QueryAsync(SqlCandidatosReset, MapReset, ct: ct);
+    public Task<List<HitoParaReset>> ObtenerCandidatosResetAsync(CancellationToken ct = default) =>
+        _db.ConsultarAsync(SqlCandidatosReset, MapearReset, ct: ct);
 
     public Task ResetearHitosAsync(IReadOnlyList<int> hitoIds, CancellationToken ct = default)
     {
@@ -89,21 +89,21 @@ public class HitosRepository(ISqlDataAccess db) : IHitosRepository
 
         var sql = $"UPDATE dbo.Hitos_Mensuales SET estado = 'Pendiente', reprogramar = NULL WHERE id IN ({string.Join(",", nombresParametros)})";
 
-        return _db.ExecuteAsync(sql, parametros, ct);
+        return _db.EjecutarAsync(sql, parametros, ct);
     }
 
-    public Task<List<HitoParaActualizar>> GetPendientesActualizarAsync(CancellationToken ct = default) =>
-        _db.QueryAsync(SqlPendientesActualizar, MapActualizar, ct: ct);
+    public Task<List<HitoParaActualizar>> ObtenerPendientesActualizarAsync(CancellationToken ct = default) =>
+        _db.ConsultarAsync(SqlPendientesActualizar, MapearActualizar, ct: ct);
 
-    public Task LimpiarFlagActualizarAsync(int hitoId, CancellationToken ct = default) =>
-        _db.ExecuteAsync(
+    public Task DesmarcarActualizarAsync(int hitoId, CancellationToken ct = default) =>
+        _db.EjecutarAsync(
             "UPDATE dbo.Hitos_Mensuales SET tg_actualizar = 0 WHERE id = @Id",
             [new SqlParameter("@Id", SqlDbType.Int) { Value = hitoId }],
             ct);
 
     // Evita sobrescribir la auditoría; si ya estaba OK, indica callback duplicado.
     public Task<int> RegistrarHitoOkAsync(int hitoId, long tgUserId, string nombreCompleto, CancellationToken ct = default) =>
-        _db.ExecuteAsync(
+        _db.EjecutarAsync(
             """
             UPDATE dbo.Hitos_Mensuales
             SET estado = 'OK', Ultima_Respuesta_Tg_Id = @TgId, Ultima_Respuesta_Nombre = @Nombre,
@@ -119,7 +119,7 @@ public class HitosRepository(ISqlDataAccess db) : IHitosRepository
 
     // Similar a RegistrarHitoOkAsync Si no hay cambios reales, se considera un callback duplicado.
     public Task<int> RegistrarHitoPospuestoAsync(int hitoId, DateOnly nuevaFecha, string accionTexto, long tgUserId, string nombreCompleto, CancellationToken ct = default) =>
-        _db.ExecuteAsync(
+        _db.EjecutarAsync(
             """
             UPDATE dbo.Hitos_Mensuales
             SET reprogramar = @Fecha, estado = 'Pendiente', Ultima_Respuesta_Tg_Id = @TgId,
@@ -136,7 +136,7 @@ public class HitosRepository(ISqlDataAccess db) : IHitosRepository
             ],
             ct);
 
-    private static HitoParaReprogramar MapReprogramar(SqlDataReader reader)
+    private static HitoParaReprogramar MapearReprogramar(SqlDataReader reader)
     {
         var ordReprogramar = reader.GetOrdinal("reprogramar");
         var ordMsgId = reader.GetOrdinal("msg_id");
@@ -150,19 +150,19 @@ public class HitosRepository(ISqlDataAccess db) : IHitosRepository
             TggChatId: reader.GetString(reader.GetOrdinal("Tgg_Chat_Id")));
     }
 
-    private static HitoParaReset MapReset(SqlDataReader reader) => new(
+    private static HitoParaReset MapearReset(SqlDataReader reader) => new(
         Id: reader.GetInt32(reader.GetOrdinal("id")),
         DiaMensual: reader.GetInt32(reader.GetOrdinal("dia_mensual")),
         Estado: reader.GetString(reader.GetOrdinal("estado")));
 
-    private static HitoParaActualizar MapActualizar(SqlDataReader reader) => new(
+    private static HitoParaActualizar MapearActualizar(SqlDataReader reader) => new(
         Id: reader.GetInt32(reader.GetOrdinal("id")),
         HitoTexto: reader.GetString(reader.GetOrdinal("hito")),
         Estado: reader.GetString(reader.GetOrdinal("estado")),
         MsgId: reader.GetString(reader.GetOrdinal("msg_id")),
         TggChatId: reader.GetString(reader.GetOrdinal("Tgg_Chat_Id")));
 
-    private static Hito Map(SqlDataReader reader)
+    private static Hito Mapear(SqlDataReader reader)
     {
         var ordEstado = reader.GetOrdinal("estado");
         var ordReprogramar = reader.GetOrdinal("reprogramar");

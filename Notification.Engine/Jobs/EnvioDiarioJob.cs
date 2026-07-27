@@ -7,24 +7,18 @@ namespace Notification.Engine.Jobs;
 
 // Job 1 - Envio Diario
 // Lógica de ejecución de recodatorios diarios
-public class EnvioDiarioJob : PeriodicBackgroundService
+public class EnvioDiarioJob(IServiceScopeFactory scopeFactory, ILogger<EnvioDiarioJob> logger) : RecurringBackgroundService(TimeSpan.FromHours(1), logger)
 {
-    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IServiceScopeFactory _scopeFactory = scopeFactory;
 
-    public EnvioDiarioJob(IServiceScopeFactory scopeFactory, ILogger<EnvioDiarioJob> logger)
-        : base(TimeSpan.FromHours(1), logger)
-    {
-        _scopeFactory = scopeFactory;
-    }
-
-    protected override async Task EjecutarAsync(CancellationToken ct)
+    protected override async Task ProcessAsync(CancellationToken ct)
     {
         using var scope = _scopeFactory.CreateScope();
         var hitosRepo = scope.ServiceProvider.GetRequiredService<IHitosRepository>();
         var filtro = scope.ServiceProvider.GetRequiredService<IEnvioDiarioFilterService>();
         var telegram = scope.ServiceProvider.GetRequiredService<TelegramBotClient>();
 
-        var pendientes = await hitosRepo.GetPendientesEnvioDiarioAsync(ct);
+        var pendientes = await hitosRepo.ObtenerPendientesEnvioDiarioAsync(ct);
         if (pendientes.Count == 0)
         {
             Logger.LogInformation("EnvioDiarioJob: sin grupos/hitos para esta hora.");
@@ -43,12 +37,12 @@ public class EnvioDiarioJob : PeriodicBackgroundService
 
         foreach (var chatId in resultado.ChatsSinRecordatorios)
         {
-            await telegram.SendMessageAsync(chatId, "✅ No hay recordatorios para hoy", ct: ct);
+            await telegram.EnviarMensajeAsync(chatId, "✅ No hay recordatorios para hoy", ct: ct);
         }
 
         foreach (var (chatId, hitosDelChat) in resultado.HitosPorChat)
         {
-            await telegram.SendMessageAsync(chatId, $"📅 Recordatorio - {DateTime.Now:dd/MM/yyyy}", ct: ct);
+            await telegram.EnviarMensajeAsync(chatId, $"📅 Recordatorio - {DateTime.Now:dd/MM/yyyy}", ct: ct);
 
             foreach (var hito in hitosDelChat)
             {
@@ -63,7 +57,7 @@ public class EnvioDiarioJob : PeriodicBackgroundService
                     ]
                 ];
 
-                var envio = await telegram.SendMessageAsync(chatId, $"- {hito.HitoTexto}", teclado, ct);
+                var envio = await telegram.EnviarMensajeAsync(chatId, $"- {hito.HitoTexto}", teclado, ct);
 
                 if (envio is { Success: true, MessageId: { } messageId })
                 {
