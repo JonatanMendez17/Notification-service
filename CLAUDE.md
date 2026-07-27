@@ -71,6 +71,7 @@ Cada uno es un `BackgroundService` con su propio `PeriodicTimer`; la condición 
 - **No se usa `parse_mode`** en ningún mensaje — los mensajes son texto plano. No usar `*negrita*` ni `_cursiva_` pensando que se va a renderizar, aparece literal.
 - `reply_markup` con `null` explícito en el JSON hace que Telegram rechace el request (`400 object expected as reply markup`) en vez de ignorarlo — por eso `SendMessagePayload.ReplyMarkup` tiene `[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]`. Si se agrega un nuevo payload con `reply_markup` opcional, replicar ese atributo.
 - `EditarMensajeAsync` siempre manda `reply_markup` con `inline_keyboard: []` (nunca null) — así es como se sacan los botones de un mensaje ya resuelto.
+- **Reintentos y rate limit**: `EnviarPeticionAsync` (Engine) y `TelegramProvider.EnviarAsync` (Api) reintentan hasta 3 veces (backoff 1s/2s) solo errores transitorios — excepción, 5xx, o 429 (leyendo `parameters.retry_after` de Telegram, con tope de 5s). Un error permanente (ej. 400 "message can't be edited") no se reintenta, se devuelve al toque. `ResponderCallbackAsync` queda afuera del retry a propósito (es cosmético, no vale la latencia extra).
 
 ## Callbacks duplicados (doble tap de botón)
 

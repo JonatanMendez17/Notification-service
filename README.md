@@ -234,6 +234,7 @@ La hora a la que se manda el recordatorio de un hito se resuelve con 3 niveles, 
 `Notification.Engine` no usa `Notification.Api` para hablar con Telegram — tiene su propio `TelegramBotClient` (`Telegram/TelegramBotClient.cs`), porque necesita botones inline y el `message_id` de vuelta, algo que un gateway genérico no ofrece. Puntos a tener en cuenta si se toca este código:
 
 - `EditarMensajeAsync` siempre manda `reply_markup` (vacío si no hay botones) — Telegram rechaza el campo si viene `null` explícito en vez de omitido.
+- Los envíos/ediciones a Telegram (tanto en el Engine como en la Api) reintentan hasta 3 veces ante errores transitorios (excepción, 5xx o 429 rate-limit — este último respetando el `retry_after` que manda Telegram, con tope de 5s). Un error permanente (ej. mensaje demasiado viejo para editar) no se reintenta.
 - Las acciones de callback (`RegistrarHitoOkAsync` / `RegistrarHitoPospuestoAsync`) devuelven la cantidad de filas afectadas: `0` significa que el hito ya estaba en ese estado (callback duplicado — doble tap del botón, o dos personas del mismo grupo) y no hay que reprocesarlo ni volver a editar el mensaje.
 
 ### Configuración

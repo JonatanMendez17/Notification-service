@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Options;
@@ -9,6 +10,10 @@ namespace Notification.Engine.Telegram;
 public class TelegramBotClient(IHttpClientFactory httpClientFactory, IOptions<TelegramSettings> settings, ILogger<TelegramBotClient> logger)
 {
     private const string ApiBase = "https://api.telegram.org";
+    private const int MaxIntentosPorDefecto = 3;
+
+    private static readonly TimeSpan[] EsperaEntreIntentos = [TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2)];
+    private static readonly TimeSpan TopeEsperaRateLimit = TimeSpan.FromSeconds(5);
 
     private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
     private readonly TelegramSettings _settings = settings.Value;
@@ -45,38 +50,61 @@ public class TelegramBotClient(IHttpClientFactory httpClientFactory, IOptions<Te
     }
 
     // Confirma visualmente la acción del botón; si falla, no interrumpe el procesamiento.
+    // Sin reintentos: es solo cosmético (le saca el relojito al botón), el estado real se resuelve aparte.
     public async Task<bool> ResponderCallbackAsync(string callbackQueryId, CancellationToken ct = default)
     {
         var payload = new AnswerCallbackQueryPayload { CallbackQueryId = callbackQueryId };
-        var (exito, _) = await EnviarPeticionAsync("answerCallbackQuery", payload, $"callback_query {callbackQueryId}", ct);
+        var (exito, _) = await EnviarPeticionAsync("answerCallbackQuery", payload, $"callback_query {callbackQueryId}", ct, maxIntentos: 1);
         return exito;
     }
 
-    // Centraliza el POST a la Bot API: arma la URL, deserializa la respuesta y loguea warning/error de forma uniforme.
+    // Centraliza el POST a la Bot API: arma la URL, deserializa la respuesta, reintenta errores
+    // transitorios (excepcion/5xx/429) y loguea warning/error de forma uniforme. Los errores
+    // permanentes (ej. 400 "message can't be edited") no se reintentan, se devuelven al toque.
     private async Task<(bool Success, TelegramApiResponse? Body)> EnviarPeticionAsync<TPayload>(
-        string metodo, TPayload payload, string contexto, CancellationToken ct)
+        string metodo, TPayload payload, string contexto, CancellationToken ct, int maxIntentos = MaxIntentosPorDefecto)
     {
-        try
+        for (var intento = 1; intento <= maxIntentos; intento++)
         {
-            var client = _httpClientFactory.CreateClient();
-            var url = $"{ApiBase}/bot{_settings.Token}/{metodo}";
+            HttpStatusCode? statusCode = null;
+            TelegramApiResponse? body = null;
 
-            using var response = await client.PostAsJsonAsync(url, payload, ct);
-            var body = await response.Content.ReadFromJsonAsync<TelegramApiResponse>(cancellationToken: ct);
-            var exito = response.IsSuccessStatusCode && body is { Ok: true };
-
-            if (!exito)
+            try
             {
-                _logger.LogWarning("Telegram {Metodo} falló para {Contexto}: {StatusCode} {Descripcion}", metodo, contexto, response.StatusCode, body?.Description);
+                var client = _httpClientFactory.CreateClient();
+                var url = $"{ApiBase}/bot{_settings.Token}/{metodo}";
+
+                using var response = await client.PostAsJsonAsync(url, payload, ct);
+                statusCode = response.StatusCode;
+                body = await response.Content.ReadFromJsonAsync<TelegramApiResponse>(cancellationToken: ct);
+
+                if (response.IsSuccessStatusCode && body is { Ok: true })
+                {
+                    return (true, body);
+                }
+
+                _logger.LogWarning("Telegram {Metodo} falló para {Contexto}: {StatusCode} {Descripcion}", metodo, contexto, statusCode, body?.Description);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al llamar a Telegram {Metodo} para {Contexto}.", metodo, contexto);
             }
 
-            return (exito, body);
+            var esTransitorio = statusCode is null or HttpStatusCode.TooManyRequests || (int)statusCode.GetValueOrDefault() >= 500;
+            if (intento == maxIntentos || !esTransitorio)
+            {
+                return (false, body);
+            }
+
+            var espera = statusCode == HttpStatusCode.TooManyRequests && body?.Parameters?.RetryAfter is { } retryAfter
+                ? TimeSpan.FromSeconds(Math.Min(retryAfter, TopeEsperaRateLimit.TotalSeconds))
+                : EsperaEntreIntentos[Math.Min(intento - 1, EsperaEntreIntentos.Length - 1)];
+
+            _logger.LogWarning("Reintentando Telegram {Metodo} para {Contexto} en {EsperaSegundos}s (intento {Intento}/{Max}).", metodo, contexto, espera.TotalSeconds, intento + 1, maxIntentos);
+            await Task.Delay(espera, ct);
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error al llamar a Telegram {Metodo} para {Contexto}.", metodo, contexto);
-            return (false, null);
-        }
+
+        return (false, null);
     }
 
     private sealed class AnswerCallbackQueryPayload

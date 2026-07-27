@@ -25,6 +25,15 @@ internal sealed class TelegramApiResponse
 
     [JsonPropertyName("error_code")]
     public int? ErrorCode { get; set; }
+
+    [JsonPropertyName("parameters")]
+    public TelegramResponseParameters? Parameters { get; set; }
+}
+
+internal sealed class TelegramResponseParameters
+{
+    [JsonPropertyName("retry_after")]
+    public int? RetryAfter { get; set; }
 }
 
 internal sealed class TelegramApiMessage
