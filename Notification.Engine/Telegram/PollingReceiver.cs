@@ -1,25 +1,23 @@
 using System.Net.Http.Json;
 using Microsoft.Extensions.Options;
+using Notification.Engine.Common;
 using Notification.Engine.Settings;
 
 namespace Notification.Engine.Telegram;
 
-// Único componente que le habla a Telegram para recibir updates en dev (spec 4.5).
-// En server se reemplaza por WebhookReceiver — nunca corren los dos a la vez, evita
-// el problema que tenía N8N de dos consumidores compitiendo por el mismo offset.
-public class PollingReceiver : BackgroundService
+// Único componente que le habla a Telegram para recibir updates en desarrollo.
+// En PROD se reemplaza por WebhookReceiver — nunca corren los dos a la vez
+public class PollingReceiver : PeriodicBackgroundService
 {
     private const string ApiBase = "https://api.telegram.org";
 
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly TelegramSettings _settings;
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly ILogger<PollingReceiver> _logger;
 
-    // Offset en memoria: se pierde en un reinicio del proceso, lo que en el peor caso
-    // reprocesa updates ya vistos (no es un problema práctico: los UPDATE de SQL son
-    // idempotentes y el alta de grupo ya está protegida contra duplicados). No bloqueante
-    // para el prototipo — si hace falta persistencia real, se revisita más adelante.
+    // El offset se guarda solo en memoria. Tras un reinicio pueden reprocesarse
+    // algunos updates, pero es seguro porque las operaciones evitan duplicados.
+
     private long? _lastUpdateId;
 
     public PollingReceiver(
@@ -27,31 +25,14 @@ public class PollingReceiver : BackgroundService
         IOptions<TelegramSettings> settings,
         IServiceScopeFactory scopeFactory,
         ILogger<PollingReceiver> logger)
+        : base(TimeSpan.FromSeconds(5), logger)
     {
         _httpClientFactory = httpClientFactory;
         _settings = settings.Value;
         _scopeFactory = scopeFactory;
-        _logger = logger;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(5));
-
-        do
-        {
-            try
-            {
-                await PollAsync(stoppingToken);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error en PollingReceiver.");
-            }
-        } while (await timer.WaitForNextTickAsync(stoppingToken));
-    }
-
-    private async Task PollAsync(CancellationToken ct)
+    protected override async Task EjecutarAsync(CancellationToken ct)
     {
         var client = _httpClientFactory.CreateClient();
         var offset = _lastUpdateId is { } id ? id + 1 : 0;
@@ -63,7 +44,7 @@ public class PollingReceiver : BackgroundService
         if (response is not { Ok: true } || response.Result.Count == 0) return;
 
         _lastUpdateId = response.Result[^1].UpdateId;
-        _logger.LogInformation("PollingReceiver: {Cantidad} update(s) de Telegram recibidos.", response.Result.Count);
+        Logger.LogInformation("PollingReceiver: {Cantidad} update(s) de Telegram recibidos.", response.Result.Count);
 
         using var scope = _scopeFactory.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<RespuestaRegistroHandler>();

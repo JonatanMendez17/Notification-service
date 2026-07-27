@@ -3,14 +3,9 @@ using Microsoft.Data.SqlClient;
 
 namespace Notification.Engine.Data;
 
-public class GruposRepository : IGruposRepository
+public class GruposRepository(ISqlDataAccess db) : IGruposRepository
 {
-    private readonly ISqlDataAccess _db;
-
-    public GruposRepository(ISqlDataAccess db)
-    {
-        _db = db;
-    }
+    private readonly ISqlDataAccess _db = db;
 
     public async Task<bool> ExisteGrupoAsync(string chatId, CancellationToken ct = default)
     {

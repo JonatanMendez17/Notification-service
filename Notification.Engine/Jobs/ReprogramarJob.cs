@@ -1,40 +1,22 @@
+using Notification.Engine.Common;
 using Notification.Engine.Data;
 using Notification.Engine.Telegram;
 
 namespace Notification.Engine.Jobs;
 
-// Workflow 3 de N8N ("Reprogramar"). Ver mapeo detallado en
-// Recursos\plan-etapas-desarrollo.md. Trigger cada hora — la condición de hora
-// (Parametria.hora_revision) vive en el propio SQL, igual que EnvioDiarioJob.
-public class ReprogramarJob : BackgroundService
+// Job 2 - Reprogramacion
+// Logica de hitos reprogramados
+public class ReprogramarJob : PeriodicBackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly ILogger<ReprogramarJob> _logger;
 
     public ReprogramarJob(IServiceScopeFactory scopeFactory, ILogger<ReprogramarJob> logger)
+        : base(TimeSpan.FromHours(1), logger)
     {
         _scopeFactory = scopeFactory;
-        _logger = logger;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        using var timer = new PeriodicTimer(TimeSpan.FromHours(1));
-
-        do
-        {
-            try
-            {
-                await EjecutarAsync(stoppingToken);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error ejecutando ReprogramarJob.");
-            }
-        } while (await timer.WaitForNextTickAsync(stoppingToken));
-    }
-
-    private async Task EjecutarAsync(CancellationToken ct)
+    protected override async Task EjecutarAsync(CancellationToken ct)
     {
         using var scope = _scopeFactory.CreateScope();
         var hitosRepo = scope.ServiceProvider.GetRequiredService<IHitosRepository>();
@@ -43,7 +25,7 @@ public class ReprogramarJob : BackgroundService
         var candidatos = await hitosRepo.GetCandidatosReprogramarAsync(ct);
         if (candidatos.Count == 0)
         {
-            _logger.LogInformation("ReprogramarJob: no es la hora de revisión, o no hay hitos.");
+            Logger.LogInformation("ReprogramarJob: no es la hora de revisión, o no hay hitos.");
             return;
         }
 
@@ -54,7 +36,7 @@ public class ReprogramarJob : BackgroundService
             .Where(h => h.Estado != "OK" && h.Reprogramar?.Date == hoy)
             .ToList();
 
-        _logger.LogInformation("ReprogramarJob: {Total} hitos vencidos sin respuesta, reprogramando para mañana.", vencidosSinRespuesta.Count);
+        Logger.LogInformation("ReprogramarJob: {Total} hitos vencidos sin respuesta, reprogramando para mañana.", vencidosSinRespuesta.Count);
 
         foreach (var hito in vencidosSinRespuesta)
         {
@@ -65,7 +47,7 @@ public class ReprogramarJob : BackgroundService
             }
 
             await hitosRepo.MarcarReprogramarAsync(hito.Id, manana, ct);
-            _logger.LogInformation("ReprogramarJob: hito {HitoId} reprogramado para {Fecha}.", hito.Id, manana);
+            Logger.LogInformation("ReprogramarJob: hito {HitoId} reprogramado para {Fecha}.", hito.Id, manana);
         }
     }
 }

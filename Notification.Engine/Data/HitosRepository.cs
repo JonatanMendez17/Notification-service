@@ -4,10 +4,9 @@ using Notification.Engine.Models;
 
 namespace Notification.Engine.Data;
 
-public class HitosRepository : IHitosRepository
+public class HitosRepository(ISqlDataAccess db) : IHitosRepository
 {
-    // Cascada de hora (de más a menos específico): hora del hito (Hora_Envio) > hora del
-    // grupo (Tgg_Hora_Envio) > hora global de Parametria ('hora_envio_diario').
+    // Hora de ejecución: hito > grupo > configuración global (parametria).
     private const string SqlPendientesEnvioDiario = """
         SELECT h.id, h.dia_mensual, h.hito, h.estado, h.reprogramar, h.msg_id,
                t.Tgg_Chat_Id, h.Envia_Fin_Semana
@@ -23,9 +22,7 @@ public class HitosRepository : IHitosRepository
                     (SELECT CAST(LEFT(par_valor, 2) AS TINYINT) FROM dbo.Parametria WHERE par_clave = 'hora_envio_diario' AND par_vigente = 1)))
         """;
 
-    // Workflow "3. Reprogramar": trae todos los hitos condicionados a la hora de revisión
-    // (Parametria.hora_revision); el filtro de "reprogramar = hoy y estado != OK" se hace
-    // en C# (EnvioDiarioFilterService no aplica acá, es lógica simple, va directo en el Job).
+    // Usa la hora de revisión; el filtrado se resuelve directamente en el Job
     private const string SqlCandidatosReprogramar = """
         SELECT h.id, h.hito, h.estado, h.reprogramar, h.msg_id, t.Tgg_Chat_Id
         FROM dbo.Hitos_Mensuales h
@@ -34,7 +31,7 @@ public class HitosRepository : IHitosRepository
             SELECT CAST(LEFT(par_valor, 2) AS TINYINT) FROM dbo.Parametria WHERE par_clave = 'hora_revision' AND par_vigente = 1)
         """;
 
-    // Workflow "4. Reset mensual": condicionado a hora_reset y a que hoy sea día 1 o 15.
+    // Reset mensual: se ejecuta según hora_reset los días 1 y 15.
     private const string SqlCandidatosReset = """
         SELECT id, dia_mensual, estado
         FROM dbo.Hitos_Mensuales
@@ -43,8 +40,7 @@ public class HitosRepository : IHitosRepository
           AND (DAY(GETDATE()) = 1 OR DAY(GETDATE()) = 15)
         """;
 
-    // Workflow "5. Actualizaciones en tiempo real": correcciones hechas desde la app web
-    // que todavía no se reflejaron en Telegram.
+    // Actualizaciones en tiempo real: correcciones hechas desde la app web que todavía no se reflejaron en Telegram.
     private const string SqlPendientesActualizar = """
         SELECT h.id, h.hito, h.estado, h.msg_id, t.Tgg_Chat_Id
         FROM dbo.Hitos_Mensuales h
@@ -54,12 +50,7 @@ public class HitosRepository : IHitosRepository
           AND h.msg_id != ''
         """;
 
-    private readonly ISqlDataAccess _db;
-
-    public HitosRepository(ISqlDataAccess db)
-    {
-        _db = db;
-    }
+    private readonly ISqlDataAccess _db = db;
 
     public Task<List<Hito>> GetPendientesEnvioDiarioAsync(CancellationToken ct = default) =>
         _db.QueryAsync(SqlPendientesEnvioDiario, Map, ct: ct);
@@ -110,8 +101,7 @@ public class HitosRepository : IHitosRepository
             [new SqlParameter("@Id", SqlDbType.Int) { Value = hitoId }],
             ct);
 
-    // WHERE estado <> 'OK': si ya estaba OK, no pisa la auditoría de quién lo resolvió
-    // primero y devuelve 0 filas — así el caller sabe que es un callback duplicado.
+    // Evita sobrescribir la auditoría; si ya estaba OK, indica callback duplicado.
     public Task<int> RegistrarHitoOkAsync(int hitoId, long tgUserId, string nombreCompleto, CancellationToken ct = default) =>
         _db.ExecuteAsync(
             """
@@ -127,8 +117,7 @@ public class HitosRepository : IHitosRepository
             ],
             ct);
 
-    // Misma idea que RegistrarHitoOkAsync: si ya está pospuesto a la misma fecha con la
-    // misma acción, es un callback duplicado (0 filas), no una reprogramación real.
+    // Similar a RegistrarHitoOkAsync Si no hay cambios reales, se considera un callback duplicado.
     public Task<int> RegistrarHitoPospuestoAsync(int hitoId, DateOnly nuevaFecha, string accionTexto, long tgUserId, string nombreCompleto, CancellationToken ct = default) =>
         _db.ExecuteAsync(
             """

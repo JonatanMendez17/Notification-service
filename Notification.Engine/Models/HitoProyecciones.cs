@@ -1,8 +1,6 @@
 namespace Notification.Engine.Models;
 
-// Proyecciones de lectura específicas por job — cada workflow original de N8N
-// selecciona columnas distintas, se respeta esa diferencia acá en vez de forzar
-// un único modelo "Hito" con campos que algunos jobs no usan.
+// Proyecciones por job: cada workflow usa solo las columnas que necesita.
 
 public sealed record HitoParaReprogramar(
     int Id,

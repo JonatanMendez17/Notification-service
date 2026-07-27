@@ -2,9 +2,7 @@ using Notification.Engine.Data;
 
 namespace Notification.Engine.Telegram;
 
-// Workflow 2 de N8N ("Respuesta y Registro"). Ver mapeo detallado en
-// Recursos\plan-etapas-desarrollo.md. NO es un Job — no tiene timer propio,
-// reacciona a lo que le pasa el receiver compartido (PollingReceiver/WebhookReceiver).
+// Se ejecuta a demanda a partir de eventos recibidos.
 public class RespuestaRegistroHandler
 {
     private static readonly string[] PalabrasRegistro = ["registro", "registrar", "registrarme"];

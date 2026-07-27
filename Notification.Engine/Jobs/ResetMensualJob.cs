@@ -1,39 +1,21 @@
+using Notification.Engine.Common;
 using Notification.Engine.Data;
 
 namespace Notification.Engine.Jobs;
 
-// Workflow 4 de N8N ("Reset mensual"). Ver mapeo detallado en
-// Recursos\plan-etapas-desarrollo.md. Trigger cada hora — la condición de hora
-// (Parametria.hora_reset) y de día (1 o 15) vive en el propio SQL.
-public class ResetMensualJob : BackgroundService
+// Job 4 - Reset Mensual
+// Reseteo mensual de hitos
+public class ResetMensualJob : PeriodicBackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly ILogger<ResetMensualJob> _logger;
 
     public ResetMensualJob(IServiceScopeFactory scopeFactory, ILogger<ResetMensualJob> logger)
+        : base(TimeSpan.FromHours(1), logger)
     {
         _scopeFactory = scopeFactory;
-        _logger = logger;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        using var timer = new PeriodicTimer(TimeSpan.FromHours(1));
-
-        do
-        {
-            try
-            {
-                await EjecutarAsync(stoppingToken);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error ejecutando ResetMensualJob.");
-            }
-        } while (await timer.WaitForNextTickAsync(stoppingToken));
-    }
-
-    private async Task EjecutarAsync(CancellationToken ct)
+    protected override async Task EjecutarAsync(CancellationToken ct)
     {
         using var scope = _scopeFactory.CreateScope();
         var hitosRepo = scope.ServiceProvider.GetRequiredService<IHitosRepository>();
@@ -41,7 +23,7 @@ public class ResetMensualJob : BackgroundService
         var candidatos = await hitosRepo.GetCandidatosResetAsync(ct);
         if (candidatos.Count == 0)
         {
-            _logger.LogInformation("ResetMensualJob: no es día/hora de reset, o no hay hitos en estado OK.");
+            Logger.LogInformation("ResetMensualJob: no es día/hora de reset, o no hay hitos en estado OK.");
             return;
         }
 
@@ -59,7 +41,7 @@ public class ResetMensualJob : BackgroundService
         if (idsAResetear.Count > 0)
         {
             await hitosRepo.ResetearHitosAsync(idsAResetear, ct);
-            _logger.LogInformation("ResetMensualJob: {Cantidad} hitos reseteados a Pendiente.", idsAResetear.Count);
+            Logger.LogInformation("ResetMensualJob: {Cantidad} hitos reseteados a Pendiente.", idsAResetear.Count);
         }
     }
 }

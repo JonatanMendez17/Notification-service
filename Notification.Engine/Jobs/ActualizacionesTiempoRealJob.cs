@@ -1,40 +1,22 @@
+using Notification.Engine.Common;
 using Notification.Engine.Data;
 using Notification.Engine.Telegram;
 
 namespace Notification.Engine.Jobs;
 
-// Workflow 5 de N8N ("Actualizaciones en tiempo real"). Ver mapeo detallado en
-// Recursos\plan-etapas-desarrollo.md. Trigger cada 5s — sincroniza hacia Telegram
-// correcciones hechas desde la app web (tg_actualizar = 1).
-public class ActualizacionesTiempoRealJob : BackgroundService
+// Job 3 - ActualizacionEnTiempoReal
+// Sincronizacion en Telegram de cambios realizados desde la app web.
+public class ActualizacionesTiempoRealJob : PeriodicBackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly ILogger<ActualizacionesTiempoRealJob> _logger;
 
     public ActualizacionesTiempoRealJob(IServiceScopeFactory scopeFactory, ILogger<ActualizacionesTiempoRealJob> logger)
+        : base(TimeSpan.FromSeconds(5), logger)
     {
         _scopeFactory = scopeFactory;
-        _logger = logger;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(5));
-
-        do
-        {
-            try
-            {
-                await EjecutarAsync(stoppingToken);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error ejecutando ActualizacionesTiempoRealJob.");
-            }
-        } while (await timer.WaitForNextTickAsync(stoppingToken));
-    }
-
-    private async Task EjecutarAsync(CancellationToken ct)
+    protected override async Task EjecutarAsync(CancellationToken ct)
     {
         using var scope = _scopeFactory.CreateScope();
         var hitosRepo = scope.ServiceProvider.GetRequiredService<IHitosRepository>();
@@ -44,7 +26,7 @@ public class ActualizacionesTiempoRealJob : BackgroundService
         var pendientes = await hitosRepo.GetPendientesActualizarAsync(ct);
         if (pendientes.Count == 0) return;
 
-        _logger.LogInformation("ActualizacionesTiempoRealJob: {Cantidad} correcciones de la app para sincronizar a Telegram.", pendientes.Count);
+        Logger.LogInformation("ActualizacionesTiempoRealJob: {Cantidad} correcciones de la app para sincronizar a Telegram.", pendientes.Count);
 
         foreach (var hito in pendientes)
         {
@@ -53,7 +35,7 @@ public class ActualizacionesTiempoRealJob : BackgroundService
             // Tolerante a fallos a propósito: si el mensaje ya no existe/es viejo, el flag se limpia igual.
             await telegram.EditMessageAsync(hito.TggChatId, hito.MsgId, texto, ct);
             await hitosRepo.LimpiarFlagActualizarAsync(hito.Id, ct);
-            _logger.LogInformation("ActualizacionesTiempoRealJob: hito {HitoId} sincronizado.", hito.Id);
+            Logger.LogInformation("ActualizacionesTiempoRealJob: hito {HitoId} sincronizado.", hito.Id);
         }
     }
 }

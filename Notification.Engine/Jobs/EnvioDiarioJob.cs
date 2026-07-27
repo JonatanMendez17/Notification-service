@@ -1,41 +1,23 @@
+using Notification.Engine.Common;
 using Notification.Engine.Data;
 using Notification.Engine.Services;
 using Notification.Engine.Telegram;
 
 namespace Notification.Engine.Jobs;
 
-// Workflow 1 de N8N ("Envío diario"). Ver mapeo detallado en
-// Recursos\plan-etapas-desarrollo.md. Trigger cada hora — la condición real de
-// disparo por grupo vive en el propio SQL (HitosRepository), igual que en N8N.
-public class EnvioDiarioJob : BackgroundService
+// Job 1 - Envio Diario
+// Lógica de ejecución de recodatorios diarios
+public class EnvioDiarioJob : PeriodicBackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly ILogger<EnvioDiarioJob> _logger;
 
     public EnvioDiarioJob(IServiceScopeFactory scopeFactory, ILogger<EnvioDiarioJob> logger)
+        : base(TimeSpan.FromHours(1), logger)
     {
         _scopeFactory = scopeFactory;
-        _logger = logger;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        using var timer = new PeriodicTimer(TimeSpan.FromHours(1));
-
-        do
-        {
-            try
-            {
-                await EjecutarAsync(stoppingToken);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error ejecutando EnvioDiarioJob.");
-            }
-        } while (await timer.WaitForNextTickAsync(stoppingToken));
-    }
-
-    private async Task EjecutarAsync(CancellationToken ct)
+    protected override async Task EjecutarAsync(CancellationToken ct)
     {
         using var scope = _scopeFactory.CreateScope();
         var hitosRepo = scope.ServiceProvider.GetRequiredService<IHitosRepository>();
@@ -45,12 +27,12 @@ public class EnvioDiarioJob : BackgroundService
         var pendientes = await hitosRepo.GetPendientesEnvioDiarioAsync(ct);
         if (pendientes.Count == 0)
         {
-            _logger.LogInformation("EnvioDiarioJob: sin grupos/hitos para esta hora.");
+            Logger.LogInformation("EnvioDiarioJob: sin grupos/hitos para esta hora.");
             return;
         }
 
         var resultado = filtro.Filtrar(pendientes, DateTime.Now);
-        _logger.LogInformation(
+        Logger.LogInformation(
             "EnvioDiarioJob: {Total} hitos leídos — {Lunes} a reprogramar al lunes, {SinRecordatorio} chats sin recordatorios, {ConHitos} chats con hitos a enviar.",
             pendientes.Count, resultado.MarcarLunes.Count, resultado.ChatsSinRecordatorios.Count, resultado.HitosPorChat.Count);
 
@@ -86,11 +68,11 @@ public class EnvioDiarioJob : BackgroundService
                 if (envio is { Success: true, MessageId: { } messageId })
                 {
                     await hitosRepo.GuardarEnvioAsync(hito.Id, messageId.ToString(), DateOnly.FromDateTime(DateTime.Now), ct);
-                    _logger.LogInformation("EnvioDiarioJob: hito {HitoId} enviado a chat {ChatId} (mensaje {MessageId}).", hito.Id, chatId, messageId);
+                    Logger.LogInformation("EnvioDiarioJob: hito {HitoId} enviado a chat {ChatId} (mensaje {MessageId}).", hito.Id, chatId, messageId);
                 }
                 else
                 {
-                    _logger.LogWarning("No se pudo enviar/guardar el hito {HitoId} al chat {ChatId}.", hito.Id, chatId);
+                    Logger.LogWarning("No se pudo enviar/guardar el hito {HitoId} al chat {ChatId}.", hito.Id, chatId);
                 }
             }
         }
