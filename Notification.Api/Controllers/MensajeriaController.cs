@@ -20,22 +20,22 @@ public class MensajeriaController : ControllerBase
     }
 
     /// <summary>
-    /// Envía un mensaje formateado a través de Telegram.
+    /// Envía un mensaje formateado a través del canal configurado.
     /// </summary>
     /// <param name="request">Datos del mensaje a enviar.</param>
     /// <returns>Resultado del envío.</returns>
-    [HttpPost("enviarMsgTG")]
+    [HttpPost("enviar")]
     [ProducesResponseType(typeof(EnviarMensajeResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(EnviarMensajeResponse), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(EnviarMensajeResponse), StatusCodes.Status500InternalServerError)]
-    public async Task<IActionResult> EnviarMsgTG([FromBody] EnviarMensajeRequest request)
+    public async Task<IActionResult> EnviarMensaje([FromBody] EnviarMensajeRequest request)
     {
         var token = ExtraerToken(Request.Headers.Authorization.ToString());
 
         try
         {
-            var resultado = await _mensajeriaService.EnviarTelegramAsync(request, token);
+            var resultado = await _mensajeriaService.EnviarAsync(request, token);
 
             if (!resultado.Exitoso && resultado.Mensaje.Contains("Token"))
                 return Unauthorized(resultado);
@@ -44,7 +44,7 @@ public class MensajeriaController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error inesperado en {Endpoint}", nameof(EnviarMsgTG));
+            _logger.LogError(ex, "Error inesperado en {Endpoint}", nameof(EnviarMensaje));
             return StatusCode(StatusCodes.Status500InternalServerError, new EnviarMensajeResponse
             {
                 Exitoso = false,

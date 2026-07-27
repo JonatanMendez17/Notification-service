@@ -8,34 +8,34 @@ namespace Notification.Api.Services;
 
 public class MensajeriaService : IMensajeriaService
 {
-    private readonly INotificationProvider _telegramProvider;
+    private readonly INotificationProvider _provider;
     private readonly ApiSettings _apiSettings;
     private readonly ILogger<MensajeriaService> _logger;
 
-    public MensajeriaService(INotificationProvider telegramProvider, IOptions<ApiSettings> apiSettings, ILogger<MensajeriaService> logger)
+    public MensajeriaService(INotificationProvider provider, IOptions<ApiSettings> apiSettings, ILogger<MensajeriaService> logger)
     {
-        _telegramProvider = telegramProvider;
+        _provider = provider;
         _apiSettings = apiSettings.Value;
         _logger = logger;
     }
 
-    public async Task<EnviarMensajeResponse> EnviarTelegramAsync(EnviarMensajeRequest request, string token)
+    public async Task<EnviarMensajeResponse> EnviarAsync(EnviarMensajeRequest request, string token)
     {
         if (!TokenEsValido(token))
         {
             _logger.LogWarning("Intento de acceso con token inválido. Sistema: {Sistema}", request.Sistema);
-            return Respuesta(false, "Token de autorización inválido.", _telegramProvider.Canal);
+            return Respuesta(false, "Token de autorización inválido.", _provider.Canal);
         }
 
         var texto = ConstruirTexto(request);
 
-        _logger.LogInformation("Enviando mensaje por {Canal}. Sistema: {Sistema}", _telegramProvider.Canal, request.Sistema);
+        _logger.LogInformation("Enviando mensaje por {Canal}. Sistema: {Sistema}", _provider.Canal, request.Sistema);
 
-        var enviado = await _telegramProvider.EnviarAsync(texto);
+        var enviado = await _provider.EnviarAsync(texto);
 
         return enviado
-            ? Respuesta(true, "Mensaje enviado correctamente.", _telegramProvider.Canal)
-            : Respuesta(false, "Error al enviar el mensaje. Intente nuevamente.", _telegramProvider.Canal);
+            ? Respuesta(true, "Mensaje enviado correctamente.", _provider.Canal)
+            : Respuesta(false, "Error al enviar el mensaje. Intente nuevamente.", _provider.Canal);
     }
 
     private bool TokenEsValido(string token) =>
