@@ -25,15 +25,9 @@ public class MensajeriaController(IMensajeriaService mensajeriaService, ILogger<
     [ProducesResponseType(typeof(EnviarMensajeResponse), StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> EnviarMensaje([FromBody] EnviarMensajeRequest request)
     {
-        var token = ExtraerToken(Request.Headers.Authorization.ToString());
-
         try
         {
-            var resultado = await _mensajeriaService.EnviarAsync(request, token);
-
-            if (!resultado.Exitoso && resultado.Mensaje.Contains("Token"))
-                return Unauthorized(resultado);
-
+            var resultado = await _mensajeriaService.EnviarAsync(request);
             return Ok(resultado);
         }
         catch (Exception ex)
@@ -48,8 +42,4 @@ public class MensajeriaController(IMensajeriaService mensajeriaService, ILogger<
             });
         }
     }
-
-    private static string ExtraerToken(string authHeader) => authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
-            ? authHeader["Bearer ".Length..].Trim()
-            : string.Empty;
 }

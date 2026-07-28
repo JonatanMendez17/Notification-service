@@ -1,13 +1,11 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
-using Microsoft.Extensions.Options;
-using Notification.Engine.Settings;
 
 namespace Notification.Engine.Telegram;
 
 // Cliente directo de Telegram Bot API para soportar funciones específicas.
-public class TelegramBotClient(IHttpClientFactory httpClientFactory, IOptions<TelegramSettings> settings, ILogger<TelegramBotClient> logger)
+public class TelegramBotClient(IHttpClientFactory httpClientFactory, TelegramTokenProvider tokenProvider, ILogger<TelegramBotClient> logger)
 {
     private const string ApiBase = "https://api.telegram.org";
     private const int MaxIntentosPorDefecto = 3;
@@ -16,7 +14,7 @@ public class TelegramBotClient(IHttpClientFactory httpClientFactory, IOptions<Te
     private static readonly TimeSpan TopeEsperaRateLimit = TimeSpan.FromSeconds(5);
 
     private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
-    private readonly TelegramSettings _settings = settings.Value;
+    private readonly TelegramTokenProvider _tokenProvider = tokenProvider;
     private readonly ILogger<TelegramBotClient> _logger = logger;
 
     public async Task<TelegramSendResult> EnviarMensajeAsync(string chatId, string text, IReadOnlyList<IReadOnlyList<InlineKeyboardButton>>? inlineKeyboard = null, CancellationToken ct = default)
@@ -72,7 +70,8 @@ public class TelegramBotClient(IHttpClientFactory httpClientFactory, IOptions<Te
             try
             {
                 var client = _httpClientFactory.CreateClient();
-                var url = $"{ApiBase}/bot{_settings.Token}/{metodo}";
+                var token = await _tokenProvider.ObtenerTokenAsync(ct);
+                var url = $"{ApiBase}/bot{token}/{metodo}";
 
                 using var response = await client.PostAsJsonAsync(url, payload, ct);
                 statusCode = response.StatusCode;

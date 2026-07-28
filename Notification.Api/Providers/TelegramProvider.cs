@@ -3,10 +3,11 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Options;
 using Notification.Api.Settings;
+using Notification.Api.Telegram;
 
 namespace Notification.Api.Providers;
 
-public class TelegramProvider(IHttpClientFactory httpClientFactory, IOptions<TelegramSettings> settings, ILogger<TelegramProvider> logger) : INotificationProvider
+public class TelegramProvider(IHttpClientFactory httpClientFactory, TelegramTokenProvider tokenProvider, IOptions<TelegramSettings> settings, ILogger<TelegramProvider> logger) : INotificationProvider
 {
     private const string ApiBase = "https://api.telegram.org";
     private const int MaxIntentos = 3;
@@ -15,6 +16,7 @@ public class TelegramProvider(IHttpClientFactory httpClientFactory, IOptions<Tel
     private static readonly TimeSpan TopeEsperaRateLimit = TimeSpan.FromSeconds(5);
 
     private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
+    private readonly TelegramTokenProvider _tokenProvider = tokenProvider;
     private readonly TelegramSettings _settings = settings.Value;
     private readonly ILogger<TelegramProvider> _logger = logger;
 
@@ -31,7 +33,8 @@ public class TelegramProvider(IHttpClientFactory httpClientFactory, IOptions<Tel
             try
             {
                 var client = _httpClientFactory.CreateClient();
-                var url = $"{ApiBase}/bot{_settings.Token}/sendMessage";
+                var token = await _tokenProvider.ObtenerTokenAsync();
+                var url = $"{ApiBase}/bot{token}/sendMessage";
 
                 var payload = new FormUrlEncodedContent(
                 [

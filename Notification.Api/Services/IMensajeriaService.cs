@@ -5,5 +5,5 @@ namespace Notification.Api.Services;
 
 public interface IMensajeriaService
 {
-    Task<EnviarMensajeResponse> EnviarAsync(EnviarMensajeRequest request, string token);
+    Task<EnviarMensajeResponse> EnviarAsync(EnviarMensajeRequest request);
 }

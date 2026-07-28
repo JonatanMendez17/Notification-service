@@ -25,7 +25,6 @@ try
 
     // Settings
     builder.Services.Configure<SqlSettings>(builder.Configuration.GetSection("Sql"));
-    builder.Services.Configure<TelegramSettings>(builder.Configuration.GetSection("Telegram"));
 
     // HTTP
     builder.Services.AddHttpClient();
@@ -36,6 +35,7 @@ try
     builder.Services.AddScoped<IGruposRepository, GruposRepository>();
 
     // Telegram
+    builder.Services.AddSingleton<TelegramTokenProvider>();
     builder.Services.AddSingleton<TelegramBotClient>();
     builder.Services.AddScoped<RespuestaRegistroHandler>();
 
