@@ -4,10 +4,11 @@
 
 ## Stack
 
-- **.NET 8**, C#, sin ORM (ADO.NET directo con `Microsoft.Data.SqlClient` en el Engine)
-- **Notification.Api**: ASP.NET Core 8 (Kestrel), gateway REST genérico multi-canal (hoy solo Telegram)
+- **.NET 8**, C#, sin ORM (ADO.NET directo con `Microsoft.Data.SqlClient`, tanto en el Engine como en la Api)
+- **Notification.Api**: ASP.NET Core 8 (Kestrel), gateway REST genérico multi-canal (hoy solo Telegram). Corre como servicio de Windows (`UseWindowsService()`, puerto fijo 5080 vía `appsettings.json:Urls`) igual que el Engine.
 - **Notification.Engine**: Worker Service (`BackgroundService` × 5 jobs + 1 receiver), habla con SQL Server y Telegram de forma bidireccional
 - Logging: Serilog (consola + archivo rotativo diario, `log/<Proyecto>/*_yyyyMMdd.txt`)
+- Token de Telegram: **no** vive en `appsettings.json` de ninguno de los dos — se lee en vivo desde `dbo.Parametria` (`telegram_bot_token`, cacheado 1 min) vía `Telegram/TelegramTokenProvider.cs` en cada proyecto. Es la misma fila que usa TGN Web; se administra desde `conf_parametros.aspx`. Ver [[project_tgn_telegram_token]].
 
 ## Estructura
 
@@ -15,17 +16,22 @@
 Notification-service/
 ├── Notification.Api/
 │   ├── Controllers/        # MensajeriaController
-│   ├── Services/           # MensajeriaService (valida token, formatea)
+│   ├── Services/           # MensajeriaService (formatea el mensaje; la auth ya no vive acá, ver Authentication/)
+│   ├── Authentication/     # ApiKeyAuthenticationHandler — auth centralizada vía RequireAuthorization() en Program.cs
 │   ├── Providers/          # TelegramProvider (INotificationProvider)
+│   ├── Telegram/           # TelegramTokenProvider (lee Parametria)
 │   ├── Models/, Settings/
 ├── Notification.Engine/
 │   ├── Jobs/               # 5 BackgroundService, uno por workflow de N8N
-│   ├── Telegram/           # TelegramBotClient, PollingReceiver, RespuestaRegistroHandler
+│   ├── Telegram/           # TelegramBotClient, PollingReceiver, RespuestaRegistroHandler, TelegramTokenProvider
 │   ├── Data/               # HitosRepository, GruposRepository, SqlDataAccess (ADO.NET crudo)
 │   ├── Services/           # EnvioDiarioFilterService
 │   ├── Models/, Settings/
-└── Deploy/                 # notas de diseño de deploy (si existen), no implementado todavía
+└── Deploy/
+    └── deploy-plan.md       # diseño de un instalador/actualizador automático (.buf + Notification.Updater) — NO implementado
 ```
+
+> La guía práctica de deploy (local → server, para TGN Web + Notification.Engine + Notification.Api juntos) vive en `D:\APP\TGN\Deploy\DEPLOY.md`, fuera de este proyecto — cubre los tres componentes a la vez.
 
 ## ⚠️ Conexión a BD — TGN-dev/Engine usan una base DISTINTA a la de red
 
@@ -42,13 +48,13 @@ User: `sa` / Password: `Admin_jm` en ambas.
 
 ## Notification.Engine — los 5 jobs
 
-Cada uno es un `BackgroundService` con su propio `PeriodicTimer`; la condición real de disparo (hora, día) vive en el SQL de `HitosRepository`, no en el timer.
+Cada uno es un `BackgroundService`; la condición real de disparo (hora, día) vive en el SQL de `HitosRepository`, no en el timer. Los tres jobs "horarios" (`EnvioDiarioJob`, `ReprogramarJob`, `ReinicioMensualJob`) heredan de `Common/HourlyBackgroundService.cs` — corren **alineados al reloj** (HH:00:00 en punto, más una corrida inicial inmediata al arrancar el proceso), no a un intervalo fijo desde que arrancó el servicio. Antes de 2026-07-28 usaban `RecurringBackgroundService` con `PeriodicTimer(1h)`, por lo que el chequeo caía en un offset arbitrario (ej. arrancar a las 11:46 hacía que el próximo chequeo fuera a las 12:46, no a las 12:00) — se cambió porque no calzaba con la expectativa de que un hito configurado para una hora se dispare en esa hora, no hasta 59 minutos después. Los dos jobs de 5s siguen usando `RecurringBackgroundService` (intervalo fijo, no necesitan alineación).
 
 | Job | Cadencia | Qué hace |
 |---|---|---|
-| `EnvioDiarioJob` | 1h | Manda el recordatorio inicial (cabecera + mensaje con botones) para hitos "vencidos hoy" cuya hora ya llegó |
-| `ReprogramarJob` | 1h (`Parametria.hora_revision`) | Hitos sin respuesta hoy → reprograma a mañana, edita el mensaje a `⏰ {hito}` |
-| `ReinicioMensualJob` | 1h (`Parametria.hora_reset`, días 1/15) | Resetea hitos `OK` → `Pendiente` |
+| `EnvioDiarioJob` | cada hora en punto | Manda el recordatorio inicial (cabecera + mensaje con botones) para hitos "vencidos hoy" cuya hora ya llegó |
+| `ReprogramarJob` | cada hora en punto (`Parametria.hora_revision`) | Hitos sin respuesta hoy → reprograma a mañana, edita el mensaje a `⏰ {hito}` |
+| `ReinicioMensualJob` | cada hora en punto (`Parametria.hora_reset`, días 1/15) | Resetea hitos `OK` → `Pendiente` |
 | `ActualizacionesTiempoRealJob` | 5s | Sincroniza a Telegram (edita mensaje) los cambios de estado hechos desde la app web |
 | `RespuestaRegistroHandler` + `PollingReceiver` | 5s (dev) | Recibe updates de Telegram: `/registrar` (alta de grupo), botones OK/Posponer |
 

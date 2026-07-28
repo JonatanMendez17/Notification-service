@@ -68,8 +68,10 @@ Notification-service/
 **Flujo de una solicitud:**
 
 ```
-Cliente → Controller → Service (valida token + formatea) → Provider → Canal externo
+Cliente → Middleware de autenticación (valida token) → Controller → Service (formatea) → Provider → Canal externo
 ```
+
+La autenticación se aplica de forma centralizada en el pipeline (`Program.cs`, `RequireAuthorization()` sobre todos los controllers) — no queda a criterio de cada endpoint individual, así que cualquier endpoint nuevo queda protegido automáticamente.
 
 **Patrones aplicados:** Provider Pattern, Options Pattern, Dependency Injection, Async/Await.
 
@@ -84,11 +86,11 @@ Envía un mensaje al canal configurado (hoy, Telegram).
 ```http
 POST /api/mensajeria/enviar
 Content-Type: application/json
+Authorization: Bearer tu-token-seguro
 ```
 
 ```json
 {
-  "tokenBearer": "tu-token-seguro",
   "sistema": "NombreDelSistema",
   "de": "Remitente",
   "para": "Destinatario",
@@ -99,7 +101,6 @@ Content-Type: application/json
 
 | Campo | Tipo | Requerido | Descripción |
 |---|---|---|---|
-| `tokenBearer` | string | Sí | Token de autorización de la API |
 | `sistema` | string | Sí | Nombre del sistema que origina la solicitud |
 | `de` | string | Sí | Remitente |
 | `para` | string | Sí | Destinatario |
@@ -135,8 +136,10 @@ La configuración se gestiona en `Notification.Api/appsettings.json`:
     "TokenBearer": "CAMBIAR-POR-TOKEN-SEGURO"
   },
   "Telegram": {
-    "Token": "<token-del-bot-de-telegram>",
     "ChatId": "<id-del-chat-o-grupo>"
+  },
+  "Sql": {
+    "ConnectionString": "<connection-string-de-la-BD-de-TGN>"
   }
 }
 ```
@@ -144,13 +147,15 @@ La configuración se gestiona en `Notification.Api/appsettings.json`:
 | Clave | Descripción |
 |---|---|
 | `ApiSettings:TokenBearer` | Token que deben enviar los consumidores en cada solicitud |
-| `Telegram:Token` | Token del bot obtenido desde [@BotFather](https://t.me/botfather) |
 | `Telegram:ChatId` | ID del chat, grupo o canal donde se enviarán los mensajes |
+| `Sql:ConnectionString` | Connection string de la BD de TGN — se usa solo para leer el token del bot (ver abajo) |
+
+> **El token del bot ya no se configura acá.** Se lee en vivo desde `dbo.Parametria` (`par_clave = 'telegram_bot_token'`) — la misma fila que usan TGN Web y `Notification.Engine` — y se cachea en memoria por 1 minuto (`Telegram/TelegramTokenProvider.cs`). Esto evita que cada proceso tenga su propia copia del token, que puede quedar desactualizada si se rota en BotFather (pasó el 2026-07-28: el token en `Parametria` estaba revocado mientras el `appsettings` del Engine tenía el vigente). Para actualizar el token, se edita una sola vez desde `conf_parametros.aspx` en TGN.
 
 > **Importante:** En entornos productivos, no almacenes credenciales en `appsettings.json`. Usa variables de entorno o un gestor de secretos (Azure Key Vault, AWS Secrets Manager, etc.).
 
 **Cómo obtener las credenciales de Telegram:**
-1. Crea un bot en Telegram hablando con [@BotFather](https://t.me/botfather) y obtienes el `Token`
+1. Crea un bot en Telegram hablando con [@BotFather](https://t.me/botfather), cargá el `Token` en `Parametria.telegram_bot_token` (no en `appsettings.json`)
 2. Agrega el bot al grupo o canal donde quieres recibir mensajes
 3. Obtén el `ChatId` usando `@userinfobot` o consultando la API de Telegram (`/getUpdates`)
 
@@ -245,9 +250,6 @@ La hora a la que se manda el recordatorio de un hito se resuelve con 3 niveles, 
 {
   "Sql": {
     "ConnectionString": ""
-  },
-  "Telegram": {
-    "Token": ""
   }
 }
 ```
@@ -255,7 +257,8 @@ La hora a la que se manda el recordatorio de un hito se resuelve con 3 niveles, 
 | Clave | Descripción |
 |---|---|
 | `Sql:ConnectionString` | Connection string a la base de TGN (tablas `Hitos_Mensuales`, `Tg_Grupo`, `Parametria`, `Tg_Receptor`, `Tg_Grupo_Receptor`) |
-| `Telegram:Token` | Token del mismo bot usado por la app web TGN |
+
+El token del bot **no** se configura acá — se lee en vivo desde `dbo.Parametria` (`par_clave = 'telegram_bot_token'`) usando el mismo `Sql:ConnectionString`, cacheado 1 minuto (`Telegram/TelegramTokenProvider.cs`). Es la misma fila que usan TGN Web y `Notification.Api`; se administra desde `conf_parametros.aspx`.
 
 > Igual que en el Api: no dejar credenciales reales en `appsettings.json` versionado. Usar `appsettings.Development.json` (ignorado por git) para desarrollo local, y variables de entorno / secret manager en producción.
 
