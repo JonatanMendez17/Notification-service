@@ -6,7 +6,7 @@ namespace Notification.Engine.Jobs;
 
 // Job 2 - Reprogramacion
 // Logica de hitos reprogramados
-public class ReprogramarJob(IServiceScopeFactory scopeFactory, ILogger<ReprogramarJob> logger) : RecurringBackgroundService(TimeSpan.FromHours(1), logger)
+public class ReprogramarJob(IServiceScopeFactory scopeFactory, ILogger<ReprogramarJob> logger) : HourlyBackgroundService(logger)
 {
     private readonly IServiceScopeFactory _scopeFactory = scopeFactory;
 

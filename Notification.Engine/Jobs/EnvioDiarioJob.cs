@@ -7,7 +7,7 @@ namespace Notification.Engine.Jobs;
 
 // Job 1 - Envio Diario
 // Lógica de ejecución de recodatorios diarios
-public class EnvioDiarioJob(IServiceScopeFactory scopeFactory, ILogger<EnvioDiarioJob> logger) : RecurringBackgroundService(TimeSpan.FromHours(1), logger)
+public class EnvioDiarioJob(IServiceScopeFactory scopeFactory, ILogger<EnvioDiarioJob> logger) : HourlyBackgroundService(logger)
 {
     private readonly IServiceScopeFactory _scopeFactory = scopeFactory;
 
