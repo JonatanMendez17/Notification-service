@@ -5,18 +5,26 @@ using Notification.Api.Settings;
 using Notification.Api.Telegram;
 using Serilog;
 
+var builder = WebApplication.CreateBuilder(args);
+builder.Host.UseWindowsService();
+
+// Ruta de logs configurable vía "Logging:Path" en appsettings.json — si viene vacía o
+// no está seteada, cae al default de siempre (carpeta "log" junto al ejecutable).
+var logPath = builder.Configuration["Logging:Path"];
+var logDirectory = string.IsNullOrWhiteSpace(logPath)
+    ? Path.Combine(AppContext.BaseDirectory, "log", "Notification.Api")
+    : Path.IsPathRooted(logPath) ? logPath : Path.Combine(AppContext.BaseDirectory, logPath);
+
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information() // Los mensajes de ciclo de vida
     .MinimumLevel.Override("Microsoft.AspNetCore", Serilog.Events.LogEventLevel.Warning)
     .WriteTo.Console()
     .WriteTo.File(
-        Path.Combine(AppContext.BaseDirectory, "log", "Notification.Api", "api_.txt"),
+        Path.Combine(logDirectory, "api_.txt"),
         rollingInterval: RollingInterval.Day,
         retainedFileCountLimit: 30)
     .CreateLogger();
 
-var builder = WebApplication.CreateBuilder(args);
-builder.Host.UseWindowsService();
 builder.Services.AddSerilog();
 
 // Settings

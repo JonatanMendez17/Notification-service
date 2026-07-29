@@ -7,7 +7,10 @@
 - **.NET 8**, C#, sin ORM (ADO.NET directo con `Microsoft.Data.SqlClient`, tanto en el Engine como en la Api)
 - **Notification.Api**: ASP.NET Core 8 (Kestrel), gateway REST genérico multi-canal (hoy solo Telegram). Corre como servicio de Windows (`UseWindowsService()`, puerto fijo 5080 vía `appsettings.json:Urls`) igual que el Engine.
 - **Notification.Engine**: Worker Service (`BackgroundService` × 5 jobs + 1 receiver), habla con SQL Server y Telegram de forma bidireccional
-- Logging: Serilog (consola + archivo rotativo diario, `log/<Proyecto>/*_yyyyMMdd.txt`)
+- Logging: Serilog (consola + archivo rotativo diario, `retainedFileCountLimit: 30`). La carpeta de logs es **configurable** vía `Logging:Path` en `appsettings.json` (o env var `Logging__Path`) — si viene vacío/ausente, cae al default de siempre: `Path.Combine(AppContext.BaseDirectory, "log", "<Proyecto>")` (relativo al directorio del ejecutable, así que en dev cae en `bin/<Config>/net8.0/log/...` y en server, en la carpeta de deploy real). Si `Logging:Path` es una ruta relativa se resuelve contra `AppContext.BaseDirectory`; si es absoluta se usa tal cual. El nombre de archivo (`api_`/`engine_` + fecha) no es configurable, solo la carpeta contenedora. Se lee en `Program.cs` de cada proyecto vía `builder.Configuration` **antes** de armar `Log.Logger` (por eso el orden: primero `builder`, después el logger, no como antes que el logger se armaba antes del builder).
+  - Default `Notification.Api`: `log/Notification.Api/api_yyyyMMdd.txt`
+  - Default `Notification.Engine`: `log/Notification.Engine/engine_yyyyMMdd.txt`
+- Versionado: sin `<Version>` en los `.csproj` — se anota a mano en `Properties/AssemblyInfo.cs` de cada proyecto (`AssemblyVersion`/`AssemblyFileVersion`), con `GenerateAssemblyInfo=false` en el csproj para que el SDK no genere el suyo (chocarían los atributos). Bumpear ahí antes de cada publish/release.
 - Token de Telegram: **no** vive en `appsettings.json` de ninguno de los dos — se lee en vivo desde `dbo.Parametria` (`telegram_bot_token`, cacheado 1 min) vía `Telegram/TelegramTokenProvider.cs` en cada proyecto. Es la misma fila que usa TGN Web; se administra desde `conf_parametros.aspx`. Ver [[project_tgn_telegram_token]].
 
 ## Estructura
