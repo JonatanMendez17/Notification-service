@@ -1,4 +1,5 @@
 using Notification.Api.Authentication;
+using Notification.Api.Logging;
 using Notification.Api.Providers;
 using Notification.Api.Services;
 using Notification.Api.Settings;
@@ -8,23 +9,7 @@ using Serilog;
 var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseWindowsService();
 
-// Ruta de logs configurable vía "Logging:Path" en appsettings.json — si viene vacía o
-// no está seteada, cae al default de siempre (carpeta "log" junto al ejecutable).
-var logPath = builder.Configuration["Logging:Path"];
-var logDirectory = string.IsNullOrWhiteSpace(logPath)
-    ? Path.Combine(AppContext.BaseDirectory, "log", "Notification.Api")
-    : Path.IsPathRooted(logPath) ? logPath : Path.Combine(AppContext.BaseDirectory, logPath);
-
-Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Information() // Los mensajes de ciclo de vida
-    .MinimumLevel.Override("Microsoft.AspNetCore", Serilog.Events.LogEventLevel.Warning)
-    .WriteTo.Console()
-    .WriteTo.File(
-        Path.Combine(logDirectory, "api_.txt"),
-        rollingInterval: RollingInterval.Day,
-        retainedFileCountLimit: 30)
-    .CreateLogger();
-
+SerilogSetup.Configure(builder.Configuration, "Notification.Api", "api");
 builder.Services.AddSerilog();
 
 // Settings

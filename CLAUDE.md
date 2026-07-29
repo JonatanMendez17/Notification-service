@@ -23,12 +23,14 @@ Notification-service/
 │   ├── Authentication/     # ApiKeyAuthenticationHandler — auth centralizada vía RequireAuthorization() en Program.cs
 │   ├── Providers/          # TelegramProvider (INotificationProvider)
 │   ├── Telegram/           # TelegramTokenProvider (lee Parametria)
+│   ├── Logging/            # SerilogSetup — arma Log.Logger leyendo Logging:Path de appsettings.json
 │   ├── Models/, Settings/
 ├── Notification.Engine/
 │   ├── Jobs/               # 5 BackgroundService, uno por workflow de N8N
 │   ├── Telegram/           # TelegramBotClient, PollingReceiver, RespuestaRegistroHandler, TelegramTokenProvider
 │   ├── Data/               # HitosRepository, GruposRepository, SqlDataAccess (ADO.NET crudo)
 │   ├── Services/           # EnvioDiarioFilterService
+│   ├── Logging/            # SerilogSetup — misma lógica que en Api, duplicada a propósito (no hay librería común entre los dos proyectos)
 │   ├── Models/, Settings/
 └── Deploy/
     └── deploy-plan.md       # diseño de un instalador/actualizador automático (.buf + Notification.Updater) — NO implementado
