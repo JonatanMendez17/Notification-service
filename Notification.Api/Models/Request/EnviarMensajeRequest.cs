@@ -7,6 +7,12 @@ public class EnviarMensajeRequest
     [Required(ErrorMessage = "El campo sistema es obligatorio.")]
     public string Sistema { get; set; } = string.Empty;
 
+    [Required(ErrorMessage = "El campo canal es obligatorio.")]
+    public string Canal { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "El campo destino es obligatorio.")]
+    public string Destino { get; set; } = string.Empty;
+
     [Required(ErrorMessage = "El campo (de:) es obligatorio.")]
     public string De { get; set; } = string.Empty;
 

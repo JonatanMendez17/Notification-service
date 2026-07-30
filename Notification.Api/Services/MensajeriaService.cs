@@ -4,22 +4,29 @@ using Notification.Api.Providers;
 
 namespace Notification.Api.Services;
 
-public class MensajeriaService(INotificationProvider provider, ILogger<MensajeriaService> logger) : IMensajeriaService
+public class MensajeriaService(IEnumerable<INotificationProvider> providers, ILogger<MensajeriaService> logger) : IMensajeriaService
 {
-    private readonly INotificationProvider _provider = provider;
+    private readonly IEnumerable<INotificationProvider> _providers = providers;
     private readonly ILogger<MensajeriaService> _logger = logger;
 
     public async Task<EnviarMensajeResponse> EnviarAsync(EnviarMensajeRequest request)
     {
+        var provider = _providers.FirstOrDefault(p => string.Equals(p.Canal, request.Canal, StringComparison.OrdinalIgnoreCase));
+        if (provider is null)
+        {
+            _logger.LogWarning("Canal no soportado: {Canal}. Sistema: {Sistema}", request.Canal, request.Sistema);
+            return Respuesta(false, $"Canal '{request.Canal}' no soportado.", request.Canal);
+        }
+
         var texto = ConstruirTexto(request);
 
-        _logger.LogInformation("Enviando mensaje por {Canal}. Sistema: {Sistema}", _provider.Canal, request.Sistema);
+        _logger.LogInformation("Enviando mensaje por {Canal} a {Destino}. Sistema: {Sistema}", provider.Canal, request.Destino, request.Sistema);
 
-        var enviado = await _provider.EnviarAsync(texto);
+        var enviado = await provider.EnviarAsync(request.Destino, texto);
 
         return enviado
-            ? Respuesta(true, "Mensaje enviado correctamente.", _provider.Canal)
-            : Respuesta(false, "Error al enviar el mensaje. Intente nuevamente.", _provider.Canal);
+            ? Respuesta(true, "Mensaje enviado correctamente.", provider.Canal)
+            : Respuesta(false, "Error al enviar el mensaje. Intente nuevamente.", provider.Canal);
     }
 
     private static string ConstruirTexto(EnviarMensajeRequest r) =>

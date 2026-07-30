@@ -1,13 +1,11 @@
 using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Microsoft.Extensions.Options;
-using Notification.Api.Settings;
 using Notification.Api.Telegram;
 
 namespace Notification.Api.Providers;
 
-public class TelegramProvider(IHttpClientFactory httpClientFactory, TelegramTokenProvider tokenProvider, IOptions<TelegramSettings> settings, ILogger<TelegramProvider> logger) : INotificationProvider
+public class TelegramProvider(IHttpClientFactory httpClientFactory, TelegramTokenProvider tokenProvider, ILogger<TelegramProvider> logger) : INotificationProvider
 {
     private const string ApiBase = "https://api.telegram.org";
     private const int MaxIntentos = 3;
@@ -17,13 +15,12 @@ public class TelegramProvider(IHttpClientFactory httpClientFactory, TelegramToke
 
     private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
     private readonly TelegramTokenProvider _tokenProvider = tokenProvider;
-    private readonly TelegramSettings _settings = settings.Value;
     private readonly ILogger<TelegramProvider> _logger = logger;
 
     public string Canal => "Telegram";
 
     // Reintenta errores transitorios (excepcion/5xx/429); un error permanente (ej. 400) no se reintenta.
-    public async Task<bool> EnviarAsync(string mensaje)
+    public async Task<bool> EnviarAsync(string destino, string mensaje)
     {
         for (var intento = 1; intento <= MaxIntentos; intento++)
         {
@@ -38,7 +35,7 @@ public class TelegramProvider(IHttpClientFactory httpClientFactory, TelegramToke
 
                 var payload = new FormUrlEncodedContent(
                 [
-                    new KeyValuePair<string, string>("chat_id", _settings.ChatId),
+                    new KeyValuePair<string, string>("chat_id", destino),
                     new KeyValuePair<string, string>("text", mensaje)
                 ]);
 

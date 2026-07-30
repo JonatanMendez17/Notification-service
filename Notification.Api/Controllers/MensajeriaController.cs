@@ -37,7 +37,7 @@ public class MensajeriaController(IMensajeriaService mensajeriaService, ILogger<
             {
                 Exitoso = false,
                 Mensaje = "Error interno del servidor.",
-                Canal = "Telegram",
+                Canal = request.Canal,
                 Timestamp = DateTime.UtcNow
             });
         }

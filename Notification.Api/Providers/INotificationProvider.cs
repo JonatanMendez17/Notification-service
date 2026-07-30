@@ -4,5 +4,5 @@ namespace Notification.Api.Providers;
 public interface INotificationProvider
 {
     string Canal { get; }
-    Task<bool> EnviarAsync(string mensaje);
+    Task<bool> EnviarAsync(string destino, string mensaje);
 }

@@ -13,7 +13,6 @@ SerilogSetup.Configure(builder.Configuration, "Notification.Api", "api");
 builder.Services.AddSerilog();
 
 // Settings
-builder.Services.Configure<TelegramSettings>(builder.Configuration.GetSection("Telegram"));
 builder.Services.Configure<ApiSettings>(builder.Configuration.GetSection("ApiSettings"));
 builder.Services.Configure<SqlSettings>(builder.Configuration.GetSection("Sql"));
 
@@ -23,7 +22,8 @@ builder.Services.AddHttpClient();
 // Telegram — token único, leído de Parametria (misma fuente que TGN Web y Notification.Engine)
 builder.Services.AddSingleton<TelegramTokenProvider>();
 
-// Providers — agregar aquí futuros canales (WhatsApp, Email, etc.)
+// Providers — se resuelven por Canal en MensajeriaService (IEnumerable<INotificationProvider>).
+// Agregar futuros canales (WhatsApp, Email, etc.) solo requiere otro AddScoped acá.
 builder.Services.AddScoped<INotificationProvider, TelegramProvider>();
 
 // Services

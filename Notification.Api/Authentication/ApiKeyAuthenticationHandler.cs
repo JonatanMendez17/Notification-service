@@ -3,7 +3,6 @@ using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
 using Notification.Api.Models.Response;
-using Notification.Api.Providers;
 using Notification.Api.Settings;
 
 namespace Notification.Api.Authentication;
@@ -15,12 +14,10 @@ public class ApiKeyAuthenticationHandler(
     IOptionsMonitor<ApiKeyAuthenticationOptions> options,
     ILoggerFactory loggerFactory,
     UrlEncoder encoder,
-    IOptions<ApiSettings> apiSettings,
-    INotificationProvider provider)
+    IOptions<ApiSettings> apiSettings)
     : AuthenticationHandler<ApiKeyAuthenticationOptions>(options, loggerFactory, encoder)
 {
     private readonly ApiSettings _apiSettings = apiSettings.Value;
-    private readonly INotificationProvider _provider = provider;
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
@@ -54,7 +51,7 @@ public class ApiKeyAuthenticationHandler(
         {
             Exitoso = false,
             Mensaje = "Token de autorización inválido.",
-            Canal = _provider.Canal,
+            Canal = string.Empty,
             Timestamp = DateTime.UtcNow
         });
     }

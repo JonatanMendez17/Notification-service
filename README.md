@@ -92,6 +92,8 @@ Authorization: Bearer tu-token-seguro
 ```json
 {
   "sistema": "NombreDelSistema",
+  "canal": "Telegram",
+  "destino": "-1001234567890",
   "de": "Remitente",
   "para": "Destinatario",
   "titulo": "Asunto del mensaje",
@@ -102,8 +104,10 @@ Authorization: Bearer tu-token-seguro
 | Campo | Tipo | Requerido | Descripción |
 |---|---|---|---|
 | `sistema` | string | Sí | Nombre del sistema que origina la solicitud |
-| `de` | string | Sí | Remitente |
-| `para` | string | Sí | Destinatario |
+| `canal` | string | Sí | Canal de envío (hoy solo `Telegram`; debe coincidir con el `Canal` de algún `INotificationProvider` registrado) |
+| `destino` | string | Sí | Identificador del destino dentro de ese canal (para Telegram, el `chat_id` del grupo/canal) — lo conoce el sistema que llama, la Api no lo resuelve |
+| `de` | string | Sí | Remitente (texto libre, se incluye en el cuerpo del mensaje) |
+| `para` | string | Sí | Destinatario (texto libre, se incluye en el cuerpo del mensaje — no determina el ruteo, eso lo hace `destino`) |
 | `titulo` | string | Sí | Asunto o título del mensaje |
 | `mensaje` | string | Sí | Contenido del mensaje |
 
@@ -122,9 +126,12 @@ Cuerpo del mensaje
 | Código | Descripción | Cuerpo |
 |---|---|---|
 | `200 OK` | Mensaje enviado correctamente | `{ "exitoso": true, "mensaje": "...", "canal": "Telegram", "timestamp": "..." }` |
+| `200 OK` | Envío fallido (canal no soportado, o error de entrega tras reintentos) | `{ "exitoso": false, "mensaje": "...", "canal": "...", "timestamp": "..." }` |
 | `400 Bad Request` | Algún campo requerido está vacío o ausente | Detalle de errores de validación |
-| `401 Unauthorized` | Token de autorización inválido | `{ "exitoso": false, "mensaje": "Token de autorización inválido.", ... }` |
+| `401 Unauthorized` | Token de autorización inválido | `{ "exitoso": false, "mensaje": "Token de autorización inválido.", "canal": "", ... }` |
 | `500 Internal Server Error` | Error interno al enviar | `{ "exitoso": false, "mensaje": "Error interno del servidor.", ... }` |
+
+> **Nota:** un `canal` no soportado (typo, o un canal sin `INotificationProvider` registrado) no es un `400` — se trata como cualquier otro fallo de envío: `200 OK` con `exitoso: false`.
 
 ### Configuración
 
@@ -135,9 +142,6 @@ La configuración se gestiona en `Notification.Api/appsettings.json`:
   "ApiSettings": {
     "TokenBearer": "CAMBIAR-POR-TOKEN-SEGURO"
   },
-  "Telegram": {
-    "ChatId": "<id-del-chat-o-grupo>"
-  },
   "Sql": {
     "ConnectionString": "<connection-string-de-la-BD-de-TGN>"
   }
@@ -147,8 +151,9 @@ La configuración se gestiona en `Notification.Api/appsettings.json`:
 | Clave | Descripción |
 |---|---|
 | `ApiSettings:TokenBearer` | Token que deben enviar los consumidores en cada solicitud |
-| `Telegram:ChatId` | ID del chat, grupo o canal donde se enviarán los mensajes |
 | `Sql:ConnectionString` | Connection string de la BD de TGN — se usa solo para leer el token del bot (ver abajo) |
+
+> **El `chat_id` (u otro identificador de destino) ya no se configura acá.** Cada solicitud lo manda en el campo `destino` del body — el sistema que llama ya sabe a qué grupo/canal le corresponde hablar, la Api no mantiene una lista de destinos.
 
 > **El token del bot ya no se configura acá.** Se lee en vivo desde `dbo.Parametria` (`par_clave = 'telegram_bot_token'`) — la misma fila que usan TGN Web y `Notification.Engine` — y se cachea en memoria por 1 minuto (`Telegram/TelegramTokenProvider.cs`). Esto evita que cada proceso tenga su propia copia del token, que puede quedar desactualizada si se rota en BotFather (pasó el 2026-07-28: el token en `Parametria` estaba revocado mientras el `appsettings` del Engine tenía el vigente). Para actualizar el token, se edita una sola vez desde `conf_parametros.aspx` en TGN.
 
@@ -188,8 +193,9 @@ La API queda disponible en:
 
 ```powershell
 $body = @{
-    tokenBearer = "tu-token-aqui"
     sistema     = "MiSistema"
+    canal       = "Telegram"
+    destino     = "-1001234567890"
     de          = "Monitor"
     para        = "Equipo Dev"
     titulo      = "Alerta de produccion"
@@ -198,13 +204,14 @@ $body = @{
 
 Invoke-RestMethod -Uri "http://localhost:51392/api/mensajeria/enviar" `
     -Method POST `
+    -Headers @{ Authorization = "Bearer tu-token-aqui" } `
     -ContentType "application/json" `
     -Body $body
 ```
 
 ### Extensibilidad
 
-Nuevos canales de mensajería se agregan implementando `INotificationProvider` en `Notification.Api/Providers/` y registrándolo en `Program.cs` — el resto del pipeline (validación de token, formateo, controller) es agnóstico al canal.
+Nuevos canales de mensajería se agregan implementando `INotificationProvider` en `Notification.Api/Providers/` y registrándolo en `Program.cs` — el resto del pipeline (validación de token, formateo, controller) es agnóstico al canal. `MensajeriaService` resuelve el provider a usar comparando el campo `canal` del request contra el `Canal` de cada `INotificationProvider` registrado (inyectados como `IEnumerable<INotificationProvider>`); si ninguno coincide, responde `200 OK` con `exitoso: false`.
 
 ---
 
