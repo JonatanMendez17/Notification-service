@@ -1,4 +1,4 @@
-namespace Notification.Api.Settings;
+namespace Notification.Api.Infrastructure.Settings;
 
 public class ApiSettings
 {

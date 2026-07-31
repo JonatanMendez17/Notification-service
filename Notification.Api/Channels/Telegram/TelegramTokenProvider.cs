@@ -1,16 +1,9 @@
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Options;
-using Notification.Api.Settings;
+using Notification.Api.Infrastructure.Settings;
 
-namespace Notification.Api.Telegram;
+namespace Notification.Api.Channels.Telegram;
 
-// Fuente única del token del bot: se lee de dbo.Parametria (la misma fila que usa TGN Web
-// en envio_manual.aspx y Notification.Engine), no de appsettings. Evita que cada proceso
-// quede con su propia copia del token, potencialmente desincronizada — ver incidente
-// 2026-07-28 (token revocado en Parametria mientras un appsettings tenía el vigente).
-// Cacheado en memoria (Singleton): abre su propia conexión ADO.NET porque, a diferencia
-// de Notification.Engine, esta Api no tiene una capa de datos genérica — agregarla solo
-// para esta única consulta sería sobre-ingeniería.
 public class TelegramTokenProvider(IOptions<SqlSettings> sqlSettings, ILogger<TelegramTokenProvider> logger)
 {
     private static readonly TimeSpan DuracionCache = TimeSpan.FromMinutes(1);

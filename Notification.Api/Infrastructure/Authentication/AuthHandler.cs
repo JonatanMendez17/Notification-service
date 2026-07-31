@@ -2,20 +2,13 @@ using System.Security.Claims;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
+using Notification.Api.Infrastructure.Settings;
 using Notification.Api.Models.Response;
-using Notification.Api.Settings;
 
-namespace Notification.Api.Authentication;
+namespace Notification.Api.Infrastructure.Authentication;
 
-// Autenticación centralizada de la API: se aplica a nivel de pipeline (Program.cs)
-// en vez de dentro de cada servicio, para que ningún endpoint nuevo quede desprotegido
-// por olvido. El contrato de respuesta 401 se mantiene igual al que documenta el README.
-public class ApiKeyAuthenticationHandler(
-    IOptionsMonitor<ApiKeyAuthenticationOptions> options,
-    ILoggerFactory loggerFactory,
-    UrlEncoder encoder,
-    IOptions<ApiSettings> apiSettings)
-    : AuthenticationHandler<ApiKeyAuthenticationOptions>(options, loggerFactory, encoder)
+// Autenticación centralizada de la API
+public class AuthHandler(IOptionsMonitor<AuthOptions> options, ILoggerFactory loggerFactory, UrlEncoder encoder, IOptions<ApiSettings> apiSettings) : AuthenticationHandler<AuthOptions>(options, loggerFactory, encoder)
 {
     private readonly ApiSettings _apiSettings = apiSettings.Value;
 
@@ -23,24 +16,21 @@ public class ApiKeyAuthenticationHandler(
     {
         var token = ExtraerToken(Request.Headers.Authorization.ToString());
 
-        // Sin token: caso normal (ej. /health, que no requiere auth) — UseAuthentication()
-        // igual intenta autenticar todas las requests, así que esto pasa en cada poll de un
-        // monitor. No es un intento de acceso real, no vale la pena loguearlo.
+        // Sin token: caso normal. Intenta autenticar todas las requests, así que esto pasa en cada poll de un monitor
         if (string.IsNullOrWhiteSpace(token))
         {
             return Task.FromResult(AuthenticateResult.Fail("Token de autorización inválido."));
         }
 
-        // Con token pero incorrecto: esto sí es un intento de acceso genuino (o un cliente
-        // mal configurado) — vale la pena que quede en el log.
+        // Con token pero incorrecto: Que quede en el log.
         if (!string.Equals(token, _apiSettings.TokenBearer, StringComparison.Ordinal))
         {
             Logger.LogWarning("Intento de acceso a {Path} con token inválido.", Request.Path);
             return Task.FromResult(AuthenticateResult.Fail("Token de autorización inválido."));
         }
 
-        var identity = new ClaimsIdentity(ApiKeyAuthenticationOptions.SchemeName);
-        var ticket = new AuthenticationTicket(new ClaimsPrincipal(identity), ApiKeyAuthenticationOptions.SchemeName);
+        var identity = new ClaimsIdentity(AuthOptions.SchemeName);
+        var ticket = new AuthenticationTicket(new ClaimsPrincipal(identity), AuthOptions.SchemeName);
         return Task.FromResult(AuthenticateResult.Success(ticket));
     }
 

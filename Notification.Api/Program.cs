@@ -1,9 +1,9 @@
-using Notification.Api.Authentication;
-using Notification.Api.Logging;
-using Notification.Api.Providers;
+using Notification.Api.Channels;
+using Notification.Api.Channels.Telegram;
+using Notification.Api.Infrastructure.Authentication;
+using Notification.Api.Infrastructure.Logging;
+using Notification.Api.Infrastructure.Settings;
 using Notification.Api.Services;
-using Notification.Api.Settings;
-using Notification.Api.Telegram;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,20 +19,18 @@ builder.Services.Configure<SqlSettings>(builder.Configuration.GetSection("Sql"))
 // HTTP
 builder.Services.AddHttpClient();
 
-// Telegram — token único, leído de Parametria (misma fuente que TGN Web y Notification.Engine)
+// Telegram — token único
 builder.Services.AddSingleton<TelegramTokenProvider>();
 
-// Providers — se resuelven por Canal en MensajeriaService (IEnumerable<INotificationProvider>).
+// Providers — se resuelven por Canal en MensajeriaService.
 // Agregar futuros canales (WhatsApp, Email, etc.) solo requiere otro AddScoped acá.
 builder.Services.AddScoped<INotificationProvider, TelegramProvider>();
 
 // Services
 builder.Services.AddScoped<IMensajeriaService, MensajeriaService>();
 
-// Autenticación por token — se exige en todos los endpoints de controllers vía
-// RequireAuthorization() más abajo, no queda a criterio de cada acción.
-builder.Services.AddAuthentication(ApiKeyAuthenticationOptions.SchemeName)
-    .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(ApiKeyAuthenticationOptions.SchemeName, null);
+// Autenticación por token — se exige en todos los endpoints de controllers.
+builder.Services.AddAuthentication(AuthOptions.SchemeName).AddScheme<AuthOptions, AuthHandler>(AuthOptions.SchemeName, null);
 builder.Services.AddAuthorization();
 
 builder.Services.AddControllers();

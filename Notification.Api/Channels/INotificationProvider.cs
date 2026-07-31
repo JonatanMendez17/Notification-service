@@ -1,4 +1,4 @@
-namespace Notification.Api.Providers;
+namespace Notification.Api.Channels;
 
 // Contrato base para cualquier proveedor de notificaciones
 public interface INotificationProvider

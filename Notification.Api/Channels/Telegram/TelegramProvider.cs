@@ -1,9 +1,9 @@
 using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Notification.Api.Telegram;
+using Notification.Api.Channels;
 
-namespace Notification.Api.Providers;
+namespace Notification.Api.Channels.Telegram;
 
 public class TelegramProvider(IHttpClientFactory httpClientFactory, TelegramTokenProvider tokenProvider, ILogger<TelegramProvider> logger) : INotificationProvider
 {

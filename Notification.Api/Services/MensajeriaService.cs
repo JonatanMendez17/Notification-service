@@ -1,6 +1,6 @@
+using Notification.Api.Channels;
 using Notification.Api.Models.Request;
 using Notification.Api.Models.Response;
-using Notification.Api.Providers;
 
 namespace Notification.Api.Services;
 
