@@ -25,6 +25,7 @@ try
     builder.Services.AddScoped<ISqlDataAccess, SqlDataAccess>();
     builder.Services.AddScoped<IHitosRepository, HitosRepository>();
     builder.Services.AddScoped<IGruposRepository, GruposRepository>();
+    builder.Services.AddScoped<IServicioEstadoRepository, ServicioEstadoRepository>();
 
     // Telegram
     builder.Services.AddSingleton<TelegramTokenProvider>();
@@ -39,6 +40,7 @@ try
     builder.Services.AddHostedService<ReprogramarJob>();
     builder.Services.AddHostedService<ReinicioMensualJob>();
     builder.Services.AddHostedService<ActualizacionesTiempoRealJob>();
+    builder.Services.AddHostedService<HeartbeatJob>();
 
     // Receiver de updates de Telegram (dev = polling, spec 4.5)
     builder.Services.AddHostedService<PollingReceiver>();

@@ -63,6 +63,7 @@ Cada uno es un `BackgroundService`; la condición real de disparo (hora, día) v
 | `ReinicioMensualJob` | cada hora en punto (`Parametria.hora_reset`, días 1/15) | Resetea hitos `OK` → `Pendiente` y limpia `Ultima_Respuesta_*` (quién/qué/cuándo respondió el ciclo anterior, se ve en `hitos.aspx`) |
 | `ActualizacionesTiempoRealJob` | 5s | Sincroniza a Telegram (edita mensaje) los cambios de estado hechos desde la app web |
 | `RespuestaRegistroHandler` + `PollingReceiver` | 5s (dev) | Recibe updates de Telegram: `/registrar` (alta de grupo), botones OK/Posponer |
+| `HeartbeatJob` | 30s | Upsert en `dbo.Parametria` de `engine_heartbeat` (hora) y `engine_version` — lo lee TGN Web (`inicio.aspx`) para mostrar si el Engine está activo o caído. Decisión consciente: reusa `Parametria` en vez de una tabla dedicada, aunque eso expone esas dos filas al ABM genérico de `conf_parametros.aspx` (nada impide que un admin las edite/borre a mano) |
 
 `PollingReceiver` es dev-only (`getUpdates`); en server debería reemplazarse por webhook — **no implementado, punto pendiente conocido**.
 
