@@ -27,21 +27,34 @@ public class PollingReceiver(IHttpClientFactory httpClientFactory, TelegramToken
         var response = await client.GetFromJsonAsync<TelegramGetUpdatesResponse>(url, ct);
         if (response is not { Ok: true } || response.Result.Count == 0) return;
 
-        _lastUpdateId = response.Result[^1].UpdateId;
         Logger.LogInformation("PollingReceiver: {Cantidad} update(s) de Telegram recibidos.", response.Result.Count);
 
         using var scope = _scopeFactory.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<RespuestaRegistroHandler>();
 
+        // Cada update se procesa y confirma (avance de offset) de forma independiente:
+        // si uno falla (SQL transitorio, cq.Message null en mensajes viejos, etc.) no debe
+        // arrastrar a los que vinieron después en el mismo lote de 5s.
         foreach (var update in response.Result)
         {
-            if (update.CallbackQuery is not null)
+            try
             {
-                await handler.ProcesarCallbackAsync(update.CallbackQuery, ct);
+                if (update.CallbackQuery is not null)
+                {
+                    await handler.ProcesarCallbackAsync(update.CallbackQuery, ct);
+                }
+                else if (update.Message is not null)
+                {
+                    await handler.ProcesarMensajeAsync(update.Message, ct);
+                }
             }
-            else if (update.Message is not null)
+            catch (Exception ex)
             {
-                await handler.ProcesarMensajeAsync(update.Message, ct);
+                Logger.LogError(ex, "PollingReceiver: error procesando update {UpdateId}, se descarta sin trabar los siguientes.", update.UpdateId);
+            }
+            finally
+            {
+                _lastUpdateId = update.UpdateId;
             }
         }
     }
