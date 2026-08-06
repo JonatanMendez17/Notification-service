@@ -40,7 +40,7 @@ public class RespuestaRegistroHandler(IHitosRepository hitosRepo, IGruposReposit
                 return;
             }
 
-            await _telegram.EditarMensajeAsync(chatId, messageId, $"✅OK-{hitoTexto}", ct);
+            await _telegram.EditarMensajeAsync(chatId, messageId, $"✅ {hitoTexto}", ct);
             _logger.LogInformation("RespuestaRegistroHandler: hito {HitoId} marcado OK por {Nombre}.", hitoId, nombreCompleto);
         }
         else if (accion.StartsWith("posponer"))
@@ -56,7 +56,7 @@ public class RespuestaRegistroHandler(IHitosRepository hitosRepo, IGruposReposit
                 return;
             }
 
-            await _telegram.EditarMensajeAsync(chatId, messageId, $"⏰Pospuesto-{hitoTexto}", ct);
+            await _telegram.EditarMensajeAsync(chatId, messageId, $"⏰ {hitoTexto}", ct);
             _logger.LogInformation("RespuestaRegistroHandler: hito {HitoId} pospuesto a {Fecha} por {Nombre}.", hitoId, nuevaFecha, nombreCompleto);
         }
         else

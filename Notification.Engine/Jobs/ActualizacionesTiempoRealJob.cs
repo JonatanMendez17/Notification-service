@@ -24,7 +24,7 @@ public class ActualizacionesTiempoRealJob(IServiceScopeFactory scopeFactory, ILo
 
         foreach (var hito in pendientes)
         {
-            var texto = hito.Estado == "OK" ? $"✅OK-{hito.HitoTexto}" : $"⏰Pospuesto-{hito.HitoTexto}";
+            var texto = hito.Estado == "OK" ? $"✅ {hito.HitoTexto}" : $"⏰ {hito.HitoTexto}";
 
             // Tolerante a fallos a propósito: si el mensaje ya no existe/es viejo, el flag se limpia igual.
             await telegram.EditarMensajeAsync(hito.TggChatId, hito.MsgId, texto, ct);
