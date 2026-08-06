@@ -87,7 +87,13 @@ public class HitosRepository(ISqlDataAccess db) : IHitosRepository
         var nombresParametros = hitoIds.Select((_, i) => $"@Id{i}").ToArray();
         var parametros = hitoIds.Select((id, i) => new SqlParameter($"@Id{i}", SqlDbType.Int) { Value = id });
 
-        var sql = $"UPDATE dbo.Hitos_Mensuales SET estado = 'Pendiente', reprogramar = NULL WHERE id IN ({string.Join(",", nombresParametros)})";
+        var sql = $"""
+            UPDATE dbo.Hitos_Mensuales
+            SET estado = 'Pendiente', reprogramar = NULL,
+                Ultima_Respuesta_Tg_Id = NULL, Ultima_Respuesta_Nombre = NULL,
+                Ultima_Respuesta_Accion = NULL, Ultima_Respuesta_Fecha = NULL
+            WHERE id IN ({string.Join(",", nombresParametros)})
+            """;
 
         return _db.EjecutarAsync(sql, parametros, ct);
     }

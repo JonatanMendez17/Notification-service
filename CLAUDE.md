@@ -60,7 +60,7 @@ Cada uno es un `BackgroundService`; la condición real de disparo (hora, día) v
 |---|---|---|
 | `EnvioDiarioJob` | cada hora en punto | Manda el recordatorio inicial (cabecera + mensaje con botones) para hitos "vencidos hoy" cuya hora ya llegó |
 | `ReprogramarJob` | cada hora en punto (`Parametria.hora_revision`) | Hitos sin respuesta hoy → reprograma a mañana, edita el mensaje a `⏰ {hito}` |
-| `ReinicioMensualJob` | cada hora en punto (`Parametria.hora_reset`, días 1/15) | Resetea hitos `OK` → `Pendiente` |
+| `ReinicioMensualJob` | cada hora en punto (`Parametria.hora_reset`, días 1/15) | Resetea hitos `OK` → `Pendiente` y limpia `Ultima_Respuesta_*` (quién/qué/cuándo respondió el ciclo anterior, se ve en `hitos.aspx`) |
 | `ActualizacionesTiempoRealJob` | 5s | Sincroniza a Telegram (edita mensaje) los cambios de estado hechos desde la app web |
 | `RespuestaRegistroHandler` + `PollingReceiver` | 5s (dev) | Recibe updates de Telegram: `/registrar` (alta de grupo), botones OK/Posponer |
 
