@@ -19,7 +19,7 @@ public static class SerilogSetup
             // el token del bot de Telegram en texto plano. Se apaga: nuestro propio código ya
             // menciona cada llamada (éxito/fallo) sin exponer la URL.
             .MinimumLevel.Override("System.Net.Http.HttpClient", LogEventLevel.Warning)
-            .WriteTo.Console()
+            .WriteTo.Console(new ConsoleLevelFormatter())
             .WriteTo.File(
                 Path.Combine(logDirectory, $"{filePrefix}_.txt"),
                 rollingInterval: RollingInterval.Day,
