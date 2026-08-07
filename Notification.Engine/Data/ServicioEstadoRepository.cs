@@ -25,4 +25,13 @@ public class ServicioEstadoRepository(ISqlDataAccess db) : IServicioEstadoReposi
             """,
             [new SqlParameter("@Version", SqlDbType.VarChar, 20) { Value = version ?? string.Empty }],
             ct);
+
+    public async Task<DateTime?> ObtenerUltimoHeartbeatAsync(CancellationToken ct = default)
+    {
+        var valor = await _db.ObtenerValorAsync<string>(
+            "SELECT par_valor FROM dbo.Parametria WHERE par_clave = 'engine_heartbeat'",
+            ct: ct);
+
+        return DateTime.TryParse(valor, out var fecha) ? fecha : null;
+    }
 }

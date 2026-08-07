@@ -51,6 +51,7 @@ try
 catch (Exception ex)
 {
     Log.Fatal(ex, "Notification.Engine terminó inesperadamente.");
+    Environment.ExitCode = 1; // código != 0: para que Windows Recovery lo trate como falla y lo reinicie
 }
 finally
 {
