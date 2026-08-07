@@ -7,6 +7,7 @@ namespace Notification.Engine.Data;
 public class HitosRepository(ISqlDataAccess db) : IHitosRepository
 {
     // Hora de ejecución: hito > grupo > configuración global (parametria).
+    // Se compara HH:mm completo (no solo la hora) — el Job que consume esto revisa cada minuto.
     private const string SqlPendientesEnvioDiario = """
         SELECT h.id, h.dia_mensual, h.hito, h.estado, h.reprogramar, h.msg_id,
                t.Tgg_Chat_Id, h.Envia_Fin_Semana
@@ -15,11 +16,11 @@ public class HitosRepository(ISqlDataAccess db) : IHitosRepository
         WHERE t.Tgg_Estado = 1
           AND t.Tgg_Chat_Id IS NOT NULL
           AND LTRIM(RTRIM(CAST(t.Tgg_Chat_Id AS varchar))) != ''
-          AND DATEPART(hour, GETDATE()) = ISNULL(
-                CAST(LEFT(h.Hora_Envio, 2) AS INT),
+          AND FORMAT(GETDATE(), 'HH:mm') = ISNULL(
+                LEFT(h.Hora_Envio, 5),
                 ISNULL(
-                    CAST(LEFT(t.Tgg_Hora_Envio, 2) AS INT),
-                    (SELECT CAST(LEFT(par_valor, 2) AS TINYINT) FROM dbo.Parametria WHERE par_clave = 'hora_envio_diario' AND par_vigente = 1)))
+                    LEFT(t.Tgg_Hora_Envio, 5),
+                    (SELECT LEFT(par_valor, 5) FROM dbo.Parametria WHERE par_clave = 'hora_envio_diario' AND par_vigente = 1)))
         """;
 
     // Usa la hora de revisión; el filtrado se resuelve directamente en el Job
@@ -27,16 +28,16 @@ public class HitosRepository(ISqlDataAccess db) : IHitosRepository
         SELECT h.id, h.hito, h.estado, h.reprogramar, h.msg_id, t.Tgg_Chat_Id
         FROM dbo.Hitos_Mensuales h
         JOIN dbo.Tg_Grupo t ON t.Tgg_Id = h.Tgg_Id
-        WHERE DATEPART(hour, GETDATE()) = (
-            SELECT CAST(LEFT(par_valor, 2) AS TINYINT) FROM dbo.Parametria WHERE par_clave = 'hora_revision' AND par_vigente = 1)
+        WHERE FORMAT(GETDATE(), 'HH:mm') = (
+            SELECT LEFT(par_valor, 5) FROM dbo.Parametria WHERE par_clave = 'hora_revision' AND par_vigente = 1)
         """;
 
     // Reset mensual: se ejecuta según hora_reset los días 1 y 15.
     private const string SqlCandidatosReset = """
         SELECT id, dia_mensual, estado
         FROM dbo.Hitos_Mensuales
-        WHERE DATEPART(hour, GETDATE()) = (
-            SELECT CAST(LEFT(par_valor, 2) AS TINYINT) FROM dbo.Parametria WHERE par_clave = 'hora_reset' AND par_vigente = 1)
+        WHERE FORMAT(GETDATE(), 'HH:mm') = (
+            SELECT LEFT(par_valor, 5) FROM dbo.Parametria WHERE par_clave = 'hora_reset' AND par_vigente = 1)
           AND (DAY(GETDATE()) = 1 OR DAY(GETDATE()) = 15)
         """;
 

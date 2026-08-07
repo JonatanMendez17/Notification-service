@@ -5,7 +5,7 @@ namespace Notification.Engine.Jobs;
 
 // Job 4 - Reinicio Mensual
 // Reseteo mensual de hitos
-public class ReinicioMensualJob(IServiceScopeFactory scopeFactory, ILogger<ReinicioMensualJob> logger) : HourlyBackgroundService(logger)
+public class ReinicioMensualJob(IServiceScopeFactory scopeFactory, ILogger<ReinicioMensualJob> logger) : MinuteBackgroundService(logger)
 {
     private readonly IServiceScopeFactory _scopeFactory = scopeFactory;
 
